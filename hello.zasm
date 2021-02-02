@@ -1,0 +1,139 @@
+; "Test Hello ZASM made by slobodan"
+
+.new	6
+%ZVERSION::	.BYTE	6
+%ENDLOD::	ENDLOD
+%START::	GO
+%VOCAB::	VOCAB
+%OBJECT::	OBJECT
+%GLOBAL::	GLOBAL
+%PURBOT::	IMPURE
+
+; equal field
+TRUE-VALUE=1
+FALSE-VALUE=0
+FATAL-VALUE=2
+BEND-WILL-SPELL="abcd"
+
+P?EBITS=38
+
+GLOBAL:: .TABLE                       ; global vars would go here
+	.GVAR TEST1=0
+	.GVAR TEST2=0
+	.ENDT
+OBJECT:: .TABLE                        ; objects would go here
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	0			
+	1			
+	0			
+	.OBJECT BEND-WILL-SPELL,0,0,0,0,0,0,T?BEND-WILL-SPELL
+	.ENDT
+
+OBJPRP::
+
+T?BEND-WILL-SPELL::	.TABLE			; TABLE FOR OBJECT BEND-WILL-SPELL
+	.STRL ""
+	.PROP 2,P?EBITS
+	34
+	.BYTE	0
+	.ENDT
+	
+IMPURE::                        ; end of dynamic memory
+
+; Some programs like to have a dictionary even though we
+; never use it. This is a minimal dictionary.
+VOCAB:: .TABLE
+        .BYTE 0                 ; # of breaking punctuation marks
+        .BYTE 4                 ; entry length (not that we have any)
+        .WORD 0                 ; # of entries
+		.ENDT
+; We will use abbreviations, though. First we define the strings.
+        .FSTR FSTR1," of beer on the wall"
+        .FSTR FSTR2," bottle"
+
+; Now we put them in the game's abbreviation table.
+WORDS:: .TABLE
+        FSTR1                   ; .WORD is implied if we just give
+        FSTR2                   ; an expression with nothing in front
+		.ENDT
+ENDLOD::                        ; end of low memory
+
+; Execution begins at the START label. We should still
+; include a routine header even though this isn't really
+; a routine, so local labels will work (if we have any,
+; which in this case we don't).
+        .FUNCT GO:ANY:0:0 
+START::
+        CRLF
+		PRINTI "Hello World CRLF."
+		PRINTR "Hello PRINTR.\n"
+		ORIGINAL END
+		
+		RFALSE
+		RSTACK
+		RTRUE
+		USL
+		VERIFY END
+END:
+        QUIT                    ; game over once it returns        
+        .END
+
