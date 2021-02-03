@@ -223,7 +223,6 @@ STINSTRUCTION codeTable_YZIP[255] = {
 	{ "printc", "var", 229, "" },
 	{ "printf", "ext", 26, "" },
 	{ "printn", "var", 230, "" },
-	{ "printd", "1op", 138, "" },
 	{ "print", "1op", 141, "" },
 	{ "printt", "var", 254, "" },
 	{ "print_unicode", "ext", 11, "" },
@@ -281,7 +280,7 @@ unsigned short GetOperandValues(string arg);
 /////////////////////////////////////
 string & ltrim(string & str);
 string & rtrim(string & str);
-void trim(string &s);
+string trim(string &s);
 string & makebackslash(string &s);
 void ZcharEncode(char chin, vector<char>*zcharstr);
 int ZStringEncode(const char *pin, char*pout);
@@ -351,6 +350,7 @@ void print_function(string arg) {
 	}
 	return;
 }
+
 bool CheckandUpdateOffset(string name, int offset) {
 	int i;
 	bool bex = 0;
@@ -528,9 +528,10 @@ string & rtrim(string & str)
 	str.erase(it1.base(), str.end());
 	return str;
 }
-void trim(string &s) {
+string trim(string &s) {
 	ltrim(s);
 	rtrim(s);
+	return s;
 }
 string & makebackslash(string &s) {
 	int pos = s.find("\\n");
@@ -589,8 +590,11 @@ int ZStringEncode(const char *pin, char*pout) {
 	int i, j = 0;
 	string temp = pin;
 	temp = makebackslash(temp);
-	if (temp == "")
-		return 0;
+	if (temp == "") {
+		pout[0] = 0x94;
+		pout[1] = 0xA5;
+		return 2;
+	}
 	vector<char> zcharstr;
 	for (i = 0; i < temp.length(); i++) {
 		ZcharEncode(temp.at(i), &zcharstr);
@@ -700,6 +704,7 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, char 
 			cout << "Too many argument error:" << endl;
 			exit(1);
 		}
+		
 		string val = optokens.at(0);
 		unsigned char oval = GetOperandType(val);
 		temp = 0x80 | (oval << 4) | opcode;
@@ -720,7 +725,9 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, char 
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		opcodes.push_back(GetOperandValues(resultop));
+		temp = GetOperandValues(resultop);	
+		opcodes.push_back(temp & 0xff);
+		
 		jump_to(jump_name, &opcodes, bBranchType);
 	}
 	if (flags == "result") {
@@ -728,7 +735,9 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, char 
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		opcodes.push_back(GetOperandValues(resultop));
+		temp = GetOperandValues(resultop);
+		opcodes.push_back(temp & 0xff);		
+		
 	}
 	if (flags == "branch") {
 		jump_to(jump_name, &opcodes, bBranchType);
@@ -1244,7 +1253,8 @@ P1:
 			else if (arg1 == ".str") {
 				GLOBALS g1;
 				g1.datatype = "str";
-				g1.name = str_replace(token, "::", "");
+				g1.name = trim(str_replace(token, "::", ""));
+				
 				g1.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g1.type = isCode ? TYPE_CODE : TYPE_DATA;
 
@@ -1253,8 +1263,8 @@ P1:
 				for (i = 0; i < nsize; i += 2) {
 					val = *(unsigned short*)(outbuff + i);
 					g1.value.push_back(val);
-					isCode ? assembled.push_back(outbuff[0]) : databytes.push_back(outbuff[0]);
-					isCode ? assembled.push_back(outbuff[1]) : databytes.push_back(outbuff[1]);
+					isCode ? assembled.push_back(outbuff[i]) : databytes.push_back(outbuff[i]);
+					isCode ? assembled.push_back(outbuff[i+1]) : databytes.push_back(outbuff[i+1]);
 				}
 				if (CheckandUpdateOffset(g1.name, g1.offset) == 0)
 					gGlobalLabels.push_back(g1);
@@ -1477,8 +1487,8 @@ P1:
 								for (i = 0; i < nsize; i += 2) {
 									val = *(unsigned short*)(outbuff + i);
 									item1.data.push_back(val);
-									isCode ? assembled.push_back(outbuff[0]) : databytes.push_back(outbuff[0]);
-									isCode ? assembled.push_back(outbuff[1]) : databytes.push_back(outbuff[1]);
+									isCode ? assembled.push_back(outbuff[i]) : databytes.push_back(outbuff[i]);
+									isCode ? assembled.push_back(outbuff[i+1]) : databytes.push_back(outbuff[i+1]);
 								}
 								t.items.push_back(item);
 								t.items.push_back(item1);
@@ -1493,8 +1503,8 @@ P1:
 								for (i = 0; i < nsize; i += 2) {
 									val = *(unsigned short*)(outbuff + i);
 									item1.data.push_back(val);
-									isCode ? assembled.push_back(outbuff[0]) : databytes.push_back(outbuff[0]);
-									isCode ? assembled.push_back(outbuff[1]) : databytes.push_back(outbuff[1]);
+									isCode ? assembled.push_back(outbuff[i]) : databytes.push_back(outbuff[i]);
+									isCode ? assembled.push_back(outbuff[i+1]) : databytes.push_back(outbuff[i+1]);
 								}
 								t.items.push_back(item1);
 							}
@@ -1702,7 +1712,7 @@ P1:
 			gLocalLabels.push_back(g);
 		if(line !="") {
 			pos = line.find(DELIMITER);
-			token = line.substr(0, pos);
+			token =strlower(line.substr(0, pos));
 			line = line.erase(0, pos + 1);
 			goto P1;
 		}
@@ -1736,7 +1746,7 @@ P1:
 		}
 		else {
 			g.datatype = "word";
-			val = getGlobalValue(arg2);
+			val = getGlobalPointer(arg2);
 			g.value.push_back(val);
 			isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
 			isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
@@ -1785,6 +1795,7 @@ P1:
 		while (databytes.size() % ALIGNMENT)
 			databytes.push_back(0);
 		g.offset = DataBase + databytes.size();
+		g.offset /= ALIGNMENT;
 		char outbuff[MAXCHARS] = { 0 };
 		int nsize = ZStringEncode(line.c_str(), outbuff);
 		for (i = 0; i < nsize; i += 2) {
@@ -1820,7 +1831,7 @@ P1:
 			gGlobalLabels.push_back(g);
 		gLocalVariables.clear();
 		if (nsize != 0) {
-			for (i = 1; i < nsize; i++) {
+			for (i = 1; i <= nsize; i++) {
 				LOCALVARIABLE lv;
 				lv.name = buff[i];
 				lv.localnum = i;
