@@ -17,9 +17,12 @@ BEND-WILL-SPELL="abcd"
 
 P?EBITS=38
 
+.GSTR STR?753,"It felt like a good time to retire, but Bergon wouldn't hear of it. ""We were told not to tarry here in Zan; frankly, I am not comfortable here. We must not sleep until we have arranged to charter a boat at the wharf!"""
+HAVENT-CHOSEN-BOAT=STR?753
+
 GLOBAL:: .TABLE                       ; global vars would go here
-	.GVAR TEST1=0
-	.GVAR TEST2=0
+	.GVAR TEST1=1
+	.GVAR TEST2=2
 	.ENDT
 OBJECT:: .TABLE                        ; objects would go here
 	0			
@@ -85,7 +88,10 @@ OBJECT:: .TABLE                        ; objects would go here
 	0			
 	1			
 	0			
-	.OBJECT BEND-WILL-SPELL,0,0,0,0,0,0,T?BEND-WILL-SPELL
+	.OBJECT ROOT_OBJ,0,0,0,0,CHILD1_OBJ,CHILD1_OBJ,T?BEND-WILL-SPELL
+	.OBJECT CHILD1_OBJ,0,0,0,ROOT_OBJ,CHILD2_OBJ,CHILD2_OBJ,T?BEND-WILL-SPELL
+	.OBJECT CHILD2_OBJ,0,0,0,ROOT_OBJ,CHILD3_OBJ,CHILD3_OBJ,T?BEND-WILL-SPELL
+	.OBJECT CHILD3_OBJ,0,0,0,ROOT_OBJ,0,0,T?BEND-WILL-SPELL	
 	.ENDT
 
 OBJPRP::
@@ -95,8 +101,7 @@ T?BEND-WILL-SPELL::	.TABLE			; TABLE FOR OBJECT BEND-WILL-SPELL
 	.PROP 2,P?EBITS
 	34
 	.BYTE	0
-	.ENDT
-	
+	.ENDT	
 IMPURE::                        ; end of dynamic memory
 
 ; Some programs like to have a dictionary even though we
@@ -123,17 +128,38 @@ ENDLOD::                        ; end of low memory
 ; which in this case we don't).
         .FUNCT GO:ANY:0:0 
 START::
-        CRLF
-		PRINTI "Hello World CRLF."
-		PRINTR "Hello PRINTR.\n"
-		ORIGINAL END
+		PRINTI "Hello. We well implement 1 opcodes."
 		
-		RFALSE
-		RSTACK
-		RTRUE
-		USL
-		VERIFY END
+        CALL1 TEST			    ; call the TEST routine
+        FSTACK                  ; we don't need its result
+        QUIT                    ; game over once it returns
+
+        .FUNCT TEST:ANY:0:1,N,VAL,TBL
+TOP:    PRINTN N
+        PRINTI "This is in function."	
+		
+		INC	TEST1				; Increase global variable
+		PRINTN TEST1			; Print global variable
+		DEC TEST2				; Decrease global variable
+		PRINTN TEST2			; Print global variable
+		
+		VALUE N >VAL		
+		LOC	CHILD2_OBJ >VAL
+		FIRST? ROOT_OBJ >VAL END
+		NEXT? ROOT_OBJ >VAL END
+		
+		PRINT HAVENT-CHOSEN-BOAT	; This is quad pointer string
+		PRINTB FSTR1				; This is ordinary byte string
+		PRINTD ROOT_OBJ				; Print Short description	
+		
+		ZERO? N	NO-S-1			; if(n == 0) goto NO-S-1
+        JUMP NO-S-2				; else goto NO-S-2
+NO-S-1: PRINTI "Input parameter is 0"	; print input value is 0
+        JUMP END        		; end
+NO-S-2: PRINTI "Input paramter is not 1"	; print input value is 1
 END:
-        QUIT                    ; game over once it returns        
+        PRINTI "Function end!"
+		PTSIZE	TBL >VAL			;
+		RETURN VAL
         .END
 
