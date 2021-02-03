@@ -1251,9 +1251,10 @@ P1:
 					gGlobalLabels.push_back(g1);
 			}
 			else if (arg1 == ".str") {
-				GLOBALS g1;
+				GLOBALS g1;				
 				g1.datatype = "str";
-				g1.name = trim(str_replace(token, "::", ""));
+				arg1 = str_replace(token, "::", "");
+				g1.name = trim(arg1);
 				
 				g1.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g1.type = isCode ? TYPE_CODE : TYPE_DATA;
@@ -2016,11 +2017,11 @@ void WriteToFile(string outfile) {
 int main(int argc, char** argv) {
 	printf("My Zasm version 0.1\n");
 
-	/*if (argc != 2) {
+	if (argc != 2) {
 	printf("Usage: zasm <file.z>\n");
 	exit(0);
-	}*/
-	string inname = "hello.zasm";//argv[1];
+	}
+	string inname = argv[1];
 	ifstream infile(inname);
 	if (infile.is_open() == false) {
 		printf("File not exist.\n");
