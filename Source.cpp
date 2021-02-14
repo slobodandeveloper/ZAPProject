@@ -19,7 +19,7 @@ int firstAssemble = 0;					//first pass or second pass assembly
 ////////////////////////////////////////////////////////////
 // Declare structures
 /////////////////////////////////////////////////////////////
-typedef int(*ProcessFuncPtr)(string args, string type, int opcode, string flags, char*result, bool bBranchType);
+typedef int(*ProcessFuncPtr)(string args, string type, int opcode, string flags, char*result, int linenum, bool bBranchType);
 
 typedef struct INSTRUCTION_INFO {
 	string instname;
@@ -32,27 +32,19 @@ typedef struct INSTRUCTION_INFO {
 typedef struct ZHEADER {
 	char ver;				//0
 	short Flags;			//1
-	char v2;				//3
+	char releasenumber;				//3
 	short highMemBase;		//4
 	short entry;			//6
 	short loc_dictionary;	//8
-
 	short loc_objtable;		//A	
 	short loc_global;		//C
 	short staticMemBase;	//E
 	char v10;				//10 Flag1
 	char v11;
-	char v12;
-	char v13;
-
-	char v14;
-	char v15;
-	char v16;
-	char v17;
+	char serial[6];
 	short loc_abb;			//18
 	short filelen;			//1A
 	short checksum;			//1C
-
 	char internum;			//1E
 	char interver;			//1F
 	char scrheight;			//20
@@ -61,20 +53,17 @@ typedef struct ZHEADER {
 	short scrwinunits;		//24
 	char fontwinunit;		//26
 	char fonthinunit;		//27
-
 	short routineoffset;	//28
 	short staticstringoffset;	//2A
 	char defbackcolor;			//2C
 	char defforecolor;			//2D
 	short addr_termchar_table;	//2E
 	short totalwidth;			//30
-
 	short std_rev_num;			//32
 	short alptable;				//34
 	short hexextaddr;			//36
 	short v38;					//38
 	short v3A;					//3A
-
 	short v3C;
 	short v3E;
 } stZHEADER, *LPZHEADER;
@@ -163,39 +152,39 @@ STINSTRUCTION codeTable_YZIP[255] = {
 	{ "verify", "0op", 189, "branch" },
 	{ "add", "2op", 20, "result" },
 	{ "band", "2op", 9, "result" },
-	{ "ashift", "ext", 3, "result" },
-	{ "bufout", "var", 242, "" },
+	{ "ashift", "ext", 259, "result" },
+	{ "bufout", "ext", 242, "" },
 	{ "icall1", "1op", 143, "" },
 	{ "call1", "1op", 136, "result" },
 	{ "icall2", "2op", 26, "" },
 	{ "call2", "2op", 25, "result" },
-	{ "icall", "var", 249, "" },
-	{ "ixcall", "var", 250, "" },
-	{ "call", "var", 224, "result" },
-	{ "assigned?", "var", 255, "branch" },
-	{ "check_unicode", "ext", 12, "result" },
+	{ "xcall", "ext", 236, "result" },
+	{ "icall", "ext", 249, "" },
+	{ "ixcall", "ext", 250, "" },
+	{ "call", "ext", 224, "result" },
+	{ "assigned?", "ext", 255, "branch" },
 	{ "fclear", "2op", 12, "" },
-	{ "copyt", "var", 253, "" },
+	{ "copyt", "ext", 253, "" },
 	{ "dec", "1op", 134, "" },
 	{ "dless?", "2op", 4, "branch" },
 	{ "div", "2op", 23, "result" },
-	{ "display", "ext", 5, "" },
-	{ "zwstr", "var", 252, "" },
-	{ "erase", "var", 238, "" },
-	{ "dclear", "ext", 7, "" },
-	{ "clear", "var", 237, "" },
+	{ "display", "ext", 261, "" },
+	{ "zwstr", "ext", 252, "" },
+	{ "erase", "ext", 238, "" },
+	{ "dclear", "ext", 263, "" },
+	{ "clear", "ext", 237, "" },
 	{ "first?", "1op", 130, "result.branch" },
-	{ "curget", "var", 240, "" },
+	{ "curget", "ext", 240, "" },
 	{ "nextp", "2op", 19, "result" },
 	{ "loc", "1op", 131, "result" },
 	{ "getp", "2op", 17, "result" },
 	{ "getpt", "2op", 18, "result" },
 	{ "ptsize", "1op", 132, "result" },
 	{ "next?", "1op", 129, "result.branch" },
-	{ "winget", "ext", 19, "result" },
+	{ "winget", "ext", 275, "result" },
 	{ "inc", "1op", 133, "" },
 	{ "igrtr?", "2op", 5, "branch" },
-	{ "dirin", "var", 244, "" },
+	{ "dirin", "ext", 244, "" },
 	{ "move", "2op", 14, "" },
 	{ "equal?", "2op", 1, "branch" },
 	{ "equal?", "ext", 193, "branch" },
@@ -207,61 +196,62 @@ STINSTRUCTION codeTable_YZIP[255] = {
 	{ "bcom", "1op", 248, "result" },
 	{ "getb", "2op", 16, "result" },
 	{ "get", "2op", 15, "result" },
-	{ "shift", "ext", 2, "result" },
-	{ "menu", "ext", 27, "branch" },
+	{ "shift", "ext", 258, "result" },
+	{ "menu", "ext", 283, "branch" },
 	{ "mod", "2op", 24, "result" },
-	{ "mouse-limit", "ext", 23, "" },
-	{ "winpos", "ext", 16, "" },
+	{ "mouse-limit", "ext", 279, "" },
+	{ "winpos", "ext", 272, "" },
 	{ "mul", "2op", 22, "result" },
-	{ "not", "var", 248, "result" },
+	{ "not", "ext", 248, "result" },
 	{ "bor", "2op", 8, "result" },
-	{ "dirout", "var", 243, "" },
-	{ "picinf", "ext", 6, "branch" },
-	{ "picture_table", "ext", 28, "" },
-	{ "fstack", "ext", 21, "" },
+	{ "dirout", "ext", 243, "" },
+	{ "picinf", "ext", 262, "branch" },
+	{ "check_unicode", "ext", 268, "" },
+	{ "picture_table", "ext", 284, "" },
+	{ "fstack", "ext", 277, "" },
 	{ "printb", "1op", 135, "" },
-	{ "printc", "var", 229, "" },
-	{ "printf", "ext", 26, "" },
-	{ "printn", "var", 230, "" },
+	{ "printc", "ext", 229, "" },
+	{ "printf", "ext", 282, "" },
+	{ "printn", "ext", 230, "" },
 	{ "print", "1op", 141, "" },
-	{ "printt", "var", 254, "" },
-	{ "print_unicode", "ext", 11, "" },
-	{ "pop", "var", 233, "" },
-	{ "push", "var", 232, "" },
-	{ "xpush", "ext", 24, "branch" },
+	{ "printt", "ext", 254, "" },
+	{ "print_unicode", "ext", 267, "" },
+	{ "pop", "ext", 233, "" },
+	{ "push", "ext", 232, "" },
+	{ "xpush", "ext", 280, "branch" },
 	{ "putp", "ext", 227, "" },
-	{ "winput", "ext", 25, "" },
-	{ "random", "var", 231, "result" },
-	{ "read", "var", 228, "result" },
-	{ "input", "var", 246, "result" },
-	{ "mouse-info", "ext", 22, "" },
+	{ "winput", "ext", 281, "" },
+	{ "random", "ext", 231, "result" },
+	{ "read", "ext", 228, "result" },
+	{ "input", "ext", 246, "result" },
+	{ "mouse-info", "ext", 278, "" },
 	{ "remove", "1op", 137, "" },
-	{ "restore", "ext", 1, "result" },
-	{ "irestore", "ext", 10, "result" },
+	{ "restore", "ext", 257, "result" },
+	{ "irestore", "ext", 266, "result" },
 	{ "return", "1op", 139, "" },
-	{ "save", "ext", 0, "result" },
-	{ "isave", "ext", 9, "result" },
-	{ "intbl?", "var", 247, "result.branch" },
-	{ "scroll", "ext", 20, "" },
+	{ "save", "ext", 256, "result" },
+	{ "isave", "ext", 265, "result" },
+	{ "intbl?", "ext", 247, "result.branch" },
+	{ "scroll", "ext", 276, "" },
 	{ "fset", "2op", 11, "" },
 	{ "color", "2op", 27, "" },
-	{ "curset", "var", 239, "" },
-	{ "font", "ext", 4, "result" },
-	{ "margin", "ext", 8, "" },
-	{ "hlight", "var", 241, "" },
-	{ "window", "var", 235, "" },
-	{ "sound", "var", 245, "" },
-	{ "split", "var", 234, "" },
+	{ "curset", "ext", 239, "" },
+	{ "font", "ext", 260, "result" },
+	{ "margin", "ext", 264, "" },
+	{ "hlight", "ext", 241, "" },
+	{ "window", "ext", 235, "" },
+	{ "sound", "ext", 245, "" },
+	{ "split", "ext", 234, "" },
 	{ "set", "2op", 13, "" },
-	{ "putb", "var", 226, "" },
-	{ "put", "var", 225, "" },
+	{ "putb", "ext", 226, "" },
+	{ "put", "ext", 225, "" },
 	{ "sub", "2op", 21, "result" },
 	{ "btst", "2op", 7, "branch" },
 	{ "fset?", "2op", 10, "branch" },
 	{ "throw", "2op", 28, "" },
-	{ "lex", "var", 251, "" },
-	{ "winsize", "ext", 17, "" },
-	{ "winattr", "ext", 18, "" }
+	{ "lex", "ext", 251, "" },
+	{ "winsize", "ext", 273, "" },
+	{ "winattr", "ext", 274, "" }
 };
 
 ///////////////////////
@@ -270,11 +260,13 @@ STINSTRUCTION codeTable_YZIP[255] = {
 void jump_function(string name);
 void print_function(string arg);
 char GetOperandType(string arg);
+char get2opArgment(string arg);
+char Get2_ExtArgType(string arg);
 bool CheckandUpdateOffset(string name, int offset);
 bool CheckandUpdateGVariable(string name, int offset);
 bool CheckandUpdateObj(string name, int offset);
 bool CheckandUpdateTable(string name, int offset);
-unsigned short GetOperandValues(string arg);
+unsigned short GetOperandValues(string arg,unsigned char *valsize);
 /////////////////////////////////////
 // String functions
 /////////////////////////////////////
@@ -289,6 +281,7 @@ string strlower(string arg);
 string strupper(string arg);
 string str_replace(string arg1, char arg2, char arg3);
 string str_replace(string arg1, string arg2, string arg3);
+int Split(string arg, string delimiter, string *res);
 ///////////////////////////////////////////////////////////////
 // Main function declr
 //////////////////////////////////////////////////////////////
@@ -299,7 +292,9 @@ void initOpFunctions();								//Init opcodes
 void jump_to(string name, vector<char> *opcodes, bool mode);	//jump functions process
 int lineProcess(string token, string line, int linenum);
 int GetVariableNumber(string arg);
-unsigned short getOffset(string arg);
+unsigned short getOffset(string arg, unsigned char*p);
+string getFileName(string org);
+void makeSerial(char*p);
 //////////////////////////////////////////////////////////////
 // Special function implementation
 ////////////////////////////////////////////////////////////
@@ -308,7 +303,8 @@ void jump_function(string name) {
 	int pos = ProgBase + assembled.size();
 	bool exist = 0;
 	unsigned short temp;
-	temp = getOffset(name);
+	unsigned char ch;
+	temp = getOffset(name,&ch);
 	if (temp) {
 		temp = (temp - pos) & 0xFFFF;
 		assembled.push_back(temp >> 8);
@@ -428,21 +424,23 @@ int GetVariableNumber(string arg) {
 	for (i = 0; i < pos; i++)
 	{
 		LOCALVARIABLE lv = gLocalVariables.at(i);
-		if (lv.name == arg)
+		if (trim(lv.name) == trim(arg))
 			return lv.localnum;
 	}
 	pos = gVariables.size();
 	for (i = 0; i < pos; i++)
 	{
 		GLOBALVARIABLE gv = gVariables.at(i);
-		if (gv.name == arg)
+		if (trim(gv.name) == trim(arg))
 			return gv.num;
 	}
 	return 0;
 }
 char GetOperandType(string arg) {
+	int i;
+	arg = trim(arg);
 	int gv = GetVariableNumber(arg);
-	if (arg.find("'") != string::npos)
+	if (arg.find("'") != string::npos )	//if set 'x, 10 then x is not variable x is imm type
 		return 1;
 	if (gv != 0)	//This is variable
 		return 2;//10
@@ -451,12 +449,37 @@ char GetOperandType(string arg) {
 		if (stoi(arg) < 256 && stoi(arg) >= 0)
 			return 1; //01
 	}
+	for (i = 0; i < gObjects.size(); i++) {
+		ZOBJECT st = gObjects.at(i);
+		if (strlower(st.objname) == strlower(arg))
+			return 1;
+	}
+	return 0;// This operand is long imm or offset varialbe
+}
+char Get2_ExtArgType(string arg) {
+	if (arg == "")
+		return 3;
+
+	char ch = GetOperandType(arg);
+	if (ch == 1)
+		return 1;
+	if (ch == 2)
+		return 2;
+	if (is_number(arg)) {
+		if (stoi(arg) >= 256)
+			return 0;
+	}
+	unsigned char chtype;
+	unsigned short temp = getOffset(arg, &chtype);
+	if (chtype == 3)
+		return 1;
 	return 0;
 }
-unsigned short getOffset(string arg) {
+unsigned short getOffset(string arg, unsigned char*ptype) {
 	int i;
 	unsigned short temp = 0;
-	bool exist = 0;
+	unsigned char exist = 0;
+	arg = trim(arg);
 	for (i = 0; i < gLocalLabels.size(); i++) {
 		LOCALLABEL st = gLocalLabels.at(i);
 		if (strlower(st.name) == strlower(arg) && strlower(gfuncname) == strlower(st.functionname)) {
@@ -470,8 +493,14 @@ unsigned short getOffset(string arg) {
 		for (i = 0; i < gGlobalLabels.size(); i++) {
 			GLOBALS st = gGlobalLabels.at(i);
 			if (strlower(st.name) == strlower(arg)) {
-				temp = st.offset;
-				exist = 1;
+				if (strlower(st.datatype) == "imm") {
+					temp = st.value.at(0);
+					exist = 3;
+				}				
+				else {
+					temp = st.offset;
+					exist = 2;
+				}
 				break;
 			}
 		}
@@ -482,35 +511,56 @@ unsigned short getOffset(string arg) {
 			ZOBJECT st = gObjects.at(i);
 			if (strlower(st.objname) == strlower(arg)) {
 				temp = st.objnum;
-				exist = 1;
+				exist = 3;
 				break;
 			}
 		}
 	}
+	*ptype = exist;
 	return temp;
 }
-unsigned short GetOperandValues(string arg) {
+unsigned short GetOperandValues(string arg, unsigned char *valsize) {
 	int i;
 	arg = str_replace(arg, "'", "");
 	arg = str_replace(arg, ">", "");
+	arg = trim(arg);
 	char ch = GetOperandType(arg);
 	unsigned short temp;
 	if (ch == 2) {
 		short gn = GetVariableNumber(arg);
 		temp = gn;
+		*valsize = 1;
 	}
-	else if (ch == 1) {
+	else if (ch == 1 && is_number(arg)) {
 		temp = stoi(arg);
+		*valsize = 1;
 	}
-	else if (ch == 0) {		
-		temp = getOffset(arg);
-		if (temp == 0) {
-			if (firstAssemble == 0)
-				cout << "Error found:" << endl;
+	else {
+		if (is_number(arg)) {		//Long imm
+			temp = stoi(arg);
+			*valsize = 2;
 		}
-		
+		else {
+			unsigned char ptype;
+			temp = getOffset(arg, &ptype);
+			*valsize = (ptype == 3) ? 1 : 2;
+			if (temp == 0) {
+				if (firstAssemble == 0)
+					cout << "Error found:" << arg << endl;
+			}
+		}
 	}
 	return temp;
+}
+char get2opArgment(string arg) {
+	if (is_number(arg)) {
+		if (stoi(arg) >= 0 && stoi(arg) < 256)
+			return 0;
+	}
+	int val = GetVariableNumber(arg);
+	if (val != 0)
+		return 1;
+	return -1;
 }
 /////////////////////////////////////////////////////////
 // string functions
@@ -652,6 +702,8 @@ string str_replace(string arg1, char arg2, char arg3) {
 string str_replace(string arg1, string arg2, string arg3){
 	int pos;
 	int n = arg2.length();
+	if (n == 0)
+		return arg1;
 	while ((pos = arg1.find(arg2)) != string::npos) {
 		arg1.replace(pos, n, arg3);
 	}
@@ -661,56 +713,72 @@ string str_replace(string arg1, string arg2, string arg3){
 /////////////////////////////////////////////////////////
 // main functions
 /////////////////////////////////////////////////////////
-int MakeByteFromOpcode(string args, string type, int opcode, string flags, char *result, bool bBranchType = false) {
-	int pos, tokencount = 0;
+int MakeByteFromOpcode(string args, string type, int opcode, string flags, char *result, int linenum, bool bBranchType = false) {
+	int pos, tokencount = 0,i;
 	unsigned short temp;
 	string token, arg = args;
 	vector<string> optokens;
 	vector<char> opcodes;
 	string resultop;
 	string jump_name;
-	while ((pos = arg.find(DELIMITER)) != string::npos) {
-		token = arg.substr(0, pos);
+	string buff[100];
+	unsigned char valsize;
+	int ccnt = Split(args, DELIMITER, buff);
+	if (flags == "branch")
+	{
+		if (ccnt < 1) {
+			cout << "line number : " << linenum << " argument count error." << endl;
+			exit(1);
+		}
+		jump_name = buff[ccnt];
+	}
+	if (flags == "result")
+	{
+		if (ccnt < 1) {
+			cout << "line number : " << linenum << " argument count error." << endl;
+			exit(1);
+		}
+		resultop = buff[ccnt];
+	}
+	if (flags == "result.branch") {
+		if (ccnt < 2) {
+			cout << "line number : " << linenum << " argument count error." << endl;
+			exit(1);
+		}
+		jump_name = buff[ccnt];
+		resultop = buff[ccnt - 1];
+	}
+	arg = str_replace(args, jump_name, "");
+	arg = trim(str_replace(arg, resultop, ""));
+	while ((pos = arg.find(",")) != string::npos) {
+		token = trim(arg.substr(0, pos));
 		optokens.push_back(token);
 		arg.erase(0, pos + 1);
 	}
-	if (arg != "") 	optokens.push_back(arg);
-
-	if (flags == "branch") {
-		jump_name = optokens.back();
-		optokens.pop_back();
-	}
-	if (flags == "result.branch") {
-		jump_name = optokens.back();
-		optokens.pop_back();
-		resultop = optokens.back();
-		optokens.pop_back();
-	}
-	if (flags == "result") {
-		resultop = optokens.back();
-		optokens.pop_back();
-	}
+	if (arg != "")
+		optokens.push_back(arg);
 	tokencount = optokens.size();
 
 	if (type == "0op") {	
 		if (tokencount != 0) {
-			cout << "Too many argument error:" << endl;
+			cout << "Too many argument error:" << linenum << ":" << arg << endl;
 			exit(1);
 		}
 		opcodes.push_back(0xB0 | opcode);
 	}
 	else if (type == "1op") {
 		if (tokencount != 1) {
-			cout << "Too many argument error:" << endl;
+			cout << "Too many argument error:" << linenum << ":" << arg << endl;
 			exit(1);
 		}
 		
-		string val = optokens.at(0);
-		unsigned char oval = GetOperandType(val);
+		string val = trim(optokens.at(0));
+		unsigned char oval = GetOperandType(val);//argcode
 		temp = 0x80 | (oval << 4) | opcode;
 		opcodes.push_back(temp & 0xff);
-		temp = GetOperandValues(val);
-		if (oval == 0)
+		
+		temp = GetOperandValues(val, &valsize);	//argbin
+		if (valsize == 2)
 		{
 			opcodes.push_back(temp >> 8);
 			opcodes.push_back(temp & 0xff);
@@ -719,13 +787,87 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, char 
 			opcodes.push_back(temp & 0xff);
 		}
 	}
+	else if (type == "2op") {
+		if (tokencount != 2) {
+			cout << "Too many argument error:" << linenum << ":" << arg << endl;
+			exit(1);
+		}
+		string arg1 = trim(optokens.at(0));
+		string arg2 = trim(optokens.at(1));
+		
+		if (get2opArgment(arg1) != -1 && get2opArgment(arg2) != -1) {
+			temp = get2opArgment(arg1) << 6 | get2opArgment(arg2) << 5 | opcode;
+			opcodes.push_back(temp & 0xff);
+		
+			temp = GetOperandValues(arg1, &valsize);
+			opcodes.push_back(temp & 0xff);
+			temp = GetOperandValues(arg2, &valsize);
+			opcodes.push_back(temp & 0xff);
+		}
+		else {
+			temp = 0xc0 | opcode;
+			opcodes.push_back(temp & 0xff);
+			temp = Get2_ExtArgType(arg1) << 6 | Get2_ExtArgType(arg2) << 4 | 0xF;
+			opcodes.push_back(temp & 0xff);
+			temp = GetOperandValues(arg1, &valsize);
+			if (valsize == 2)
+			{
+				opcodes.push_back(temp >> 8);
+				opcodes.push_back(temp & 0xff);
+			}
+			else{
+				opcodes.push_back(temp & 0xff);
+			}
+			temp = GetOperandValues(arg2, &valsize);
+			if (valsize == 2)
+			{
+				opcodes.push_back(temp >> 8);
+				opcodes.push_back(temp & 0xff);
+			}
+			else{
+				opcodes.push_back(temp & 0xff);
+			}
+		}
+	}
+	else if (type == "ext") {
+		if (tokencount > 4) {
+			cout << "Too many argument error:" << linenum << ":" << arg << endl;
+			exit(1);
+		}
+		string arg1 = optokens.size() > 0 ? trim(optokens.at(0)) : "";
+		string arg2 = optokens.size() > 1 ? trim(optokens.at(1)) : "";
+		string arg3 = optokens.size() > 2 ? trim(optokens.at(2)) : "";
+		string arg4 = optokens.size() > 3 ? trim(optokens.at(3)) : "";
+		if (opcode < 256) {
+			temp = 0xe0 | opcode;
+			opcodes.push_back(temp);
+		}
+		else {
+			opcodes.push_back(0xBE);
+			opcodes.push_back(opcode - 256);
+		}
+		unsigned char t1 = Get2_ExtArgType(arg1) << 6 | Get2_ExtArgType(arg2) << 4 | Get2_ExtArgType(arg3) << 2 | Get2_ExtArgType(arg4);
+		opcodes.push_back(t1);
+		for (i = 0; i < optokens.size(); i++) {
+			arg1 = optokens.at(i);
+			temp = GetOperandValues(arg1, &valsize);
+			if (valsize == 2)
+			{
+				opcodes.push_back(temp >> 8);
+				opcodes.push_back(temp & 0xff);
+			}
+			else{
+				opcodes.push_back(temp & 0xff);
+			}
+		}
+	}
 	if (flags == "result.branch")
 	{
 		if (GetOperandType(resultop) != 2) {
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		temp = GetOperandValues(resultop);	
+		temp = GetOperandValues(resultop, &valsize);	
 		opcodes.push_back(temp & 0xff);
 		
 		jump_to(jump_name, &opcodes, bBranchType);
@@ -735,7 +877,7 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, char 
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		temp = GetOperandValues(resultop);
+		temp = GetOperandValues(resultop,&valsize);
 		opcodes.push_back(temp & 0xff);		
 		
 	}
@@ -885,6 +1027,11 @@ int getGlobalPointer(string valname) {
 		if (strlower(g.name) == strlower(valname))
 			return g.offset;
 	}
+	for (i = 0; i < gObjects.size(); i++) {
+		ZOBJECT g = gObjects.at(i);			//if endlod already parsed then after that is code segment's label.
+		if (strlower(g.objname) == strlower(valname))
+			return g.objnum;
+	}
 	return 0;
 }
 int getGlobalValue(string valname) {
@@ -935,6 +1082,7 @@ P1:
 			g.name = str_replace(token, "::", "");
 			g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 			g.type = isCode ? TYPE_CODE : TYPE_DATA;
+			token = str_replace(token, "::", "");
 			if (CheckandUpdateOffset(token, g.offset) == 0)
 				gGlobalLabels.push_back(g);
 		}
@@ -944,34 +1092,45 @@ P1:
 			arg1 = strlower(arg1);
 			GLOBALS g;
 			if (arg1 == ".byte") {
-				g.datatype = "byte";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
-				if (is_number(arg2) == false) {
-					cout << ".byte data have to be number";
-					exit(1);
-				}
-				val = stoi(arg2);
-				isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
-				g.value.push_back(val);
-				databytes.push_back(val & 0xFF);
+
+				string buff[100];
+				pos = Split(arg2, ",", buff);
+				for (i = 0; i <= pos; i++) {
+					if (is_number(buff[i]) == false) {
+						cout << ".byte data have to be number";
+						exit(1);
+					}
+					val = stoi(buff[i]);
+					isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
+					g.value.push_back(val);
+					databytes.push_back(val & 0xFF);
+				}				
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(token, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
 			else if (arg1 == ".word") {
-				g.datatype = "word";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
-				if (is_number(arg2) == false) {
-					cout << ".byte data have to be number";
-					exit(1);
+				string buff[100];
+				pos = Split(arg2, ",", buff);
+				for (i = 0; i <= pos; i++) {
+					if (is_number(buff[i]) == false) {
+						cout << ".byte data have to be number";
+						exit(1);
+					}
+					val = stoi(buff[i]);
+					g.value.push_back(val);
+					isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
+					isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
 				}
-				val = stoi(arg2);
-				g.value.push_back(val);
-				isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
-				isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(token, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
@@ -980,6 +1139,7 @@ P1:
 				t.name = str_replace(token, "::", "");
 				t.maxsize = 0;
 				t.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
+				token = str_replace(token, "::", "");
 				if (!(t.name == "global" || t.name == "object")){
 					g.datatype = "table";
 					g.name = str_replace(token, "::", "");
@@ -1154,11 +1314,17 @@ P1:
 							string buff[2];
 							Split(arg2, ",", buff);
 							unsigned short val;
+							p3:
 							if (is_number(buff[1])) {
 								val = stoi(buff[1]);
 							}
 							else {
-								val = getGlobalValue(buff[1]);
+								if ((pos = buff[1].find(",")) == -1)
+									val = getGlobalPointer(buff[1]);
+								else {
+									buff[1]= buff[1].substr(0, pos);
+									goto p3;
+								}
 							}
 							GLOBALVARIABLE gv;
 							gv.name = buff[0];							
@@ -1222,8 +1388,9 @@ P1:
 			}
 			else if (arg1 == ".strl") {
 				GLOBALS g;
-				g.datatype = "byte";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
+				token = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
 
@@ -1251,9 +1418,10 @@ P1:
 					gGlobalLabels.push_back(g1);
 			}
 			else if (arg1 == ".str") {
-				GLOBALS g1;				
+				GLOBALS g1;
 				g1.datatype = "str";
 				arg1 = str_replace(token, "::", "");
+				token = str_replace(token, "::", "");
 				g1.name = trim(arg1);
 				
 				g1.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
@@ -1272,7 +1440,7 @@ P1:
 			}
 			else if (arg1 == ".len") {
 				GLOBALS g;
-				g.datatype = "len";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
@@ -1280,12 +1448,13 @@ P1:
 				val = arg2.length();
 				g.value.push_back(val);
 				isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
 			else if (arg1 == ".zword") {
 				GLOBALS g;
-				g.datatype = "len";
+				g.datatype = "str";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
@@ -1296,28 +1465,31 @@ P1:
 					g.value.push_back(val);
 					isCode ? assembled.push_back(val) : databytes.push_back(val);
 				}
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
 			else if (arg1 == ".true") {
 				GLOBALS g;
-				g.datatype = "true";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
 				g.value.push_back(1);
 				isCode ? assembled.push_back(1) : databytes.push_back(1);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
 			else if (arg1 == ".false") {
 				GLOBALS g;
-				g.datatype = "true";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
 				g.value.push_back(0);
 				isCode ? assembled.push_back(0) : databytes.push_back(0);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
@@ -1367,11 +1539,17 @@ P1:
 				string buff[2];
 				Split(arg2, ",", buff);
 				unsigned short val;
+				p4:
 				if (is_number(buff[1])) {
 					val = stoi(buff[1]);
 				}
 				else {
-					val = getGlobalValue(buff[1]);
+					if ((pos = buff[1].find(",")) == -1)
+						val = getGlobalPointer(buff[1]);
+					else {
+						buff[1] = buff[1].substr(0, pos);
+						goto p4;
+					}
 				}
 				GLOBALVARIABLE gv;
 				gv.name = buff[0];				
@@ -1408,6 +1586,7 @@ P1:
 				v1 = (v2-1) << 5 | v3;
 				g.value.push_back(v1);
 				isCode ? assembled.push_back(v1 & 0xff) : databytes.push_back(v1 & 0xff);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 			}
@@ -1613,11 +1792,17 @@ P1:
 								string buff[2];
 								Split(arg2, "=", buff);
 								unsigned short val;
+								p5:
 								if (is_number(buff[1])) {
 									val = stoi(buff[1]);
 								}
 								else {
-									val = getGlobalValue(buff[1]);
+									if ((pos = buff[1].find(",")) == -1)
+										val = getGlobalPointer(buff[1]);
+									else {
+										buff[1] = buff[1].substr(0, pos);
+										goto p5;
+									}
 								}
 								GLOBALVARIABLE gv;
 								gv.name = buff[0];
@@ -1674,7 +1859,7 @@ P1:
 						g.name = str_replace(token, "::", "");
 						g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 						g.type = isCode ? TYPE_CODE : TYPE_DATA;
-
+						token = str_replace(token, "::", "");
 						if (CheckandUpdateOffset(token, g.offset) == 0)
 							gGlobalLabels.push_back(g);
 					}
@@ -1684,18 +1869,20 @@ P1:
 					g.name = str_replace(token, "::", "");
 					g.datatype = line;
 					g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
+					token = str_replace(token, "::", "");
 					if (CheckandUpdateOffset(g.name, g.offset) == 0)
 						gGlobalLabels.push_back(g);
 				}
 			}
 			else {
 				GLOBALS g;
-				g.datatype = "word";
+				g.datatype = "imm";
 				g.name = str_replace(token, "::", "");
 				g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 				g.type = isCode ? TYPE_CODE : TYPE_DATA;
 				val = stoi(line);
 				g.value.push_back(val);
+				token = str_replace(token, "::", "");
 				if (CheckandUpdateOffset(g.name, g.offset) == 0)
 					gGlobalLabels.push_back(g);
 				isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
@@ -1722,6 +1909,8 @@ P1:
 		//This is local label;
 		string arg1 = token.substr(0, pos);
 		string arg2 = token.erase(0, pos + 1);
+		string arg3 = "";
+	p2:
 		GLOBALS g;
 		g.name = arg1;
 		g.type = isCode ? TYPE_CODE : TYPE_DATA;
@@ -1739,14 +1928,19 @@ P1:
 			}
 		}
 		else if (is_number(arg2)){
-			g.datatype = "word";
+			g.datatype = "imm";
 			val = stoi(arg2);
 			g.value.push_back(val);
 			isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
 			isCode ? assembled.push_back(val & 0xff) : databytes.push_back(val & 0xff);
 		}
+		else if ((pos = arg2.find(",")) != -1){
+			arg2 = trim(token.substr(0, pos));
+			arg3 = trim(token.erase(0, pos + 1));
+			goto p2;
+		}
 		else {
-			g.datatype = "word";
+			g.datatype = (arg3 == "") ? (line != "" ? line : "word") : arg3;
 			val = getGlobalPointer(arg2);
 			g.value.push_back(val);
 			isCode ? assembled.push_back(val >> 8) : databytes.push_back(val >> 8);
@@ -1759,7 +1953,7 @@ P1:
 		string buff[2];
 		Split(line, ",", buff);
 		GLOBALS g;
-		g.datatype = "word";
+		g.datatype = "imm";
 		g.name = buff[1];
 		val = stoi(buff[2]);
 		g.value.push_back(val);
@@ -1817,6 +2011,7 @@ P1:
 			funcmain = line;
 		else
 			funcmain = buff[0];
+		
 		string buff1[4];
 		Split(funcmain, ":", buff1);
 		GLOBALS g;
@@ -1827,7 +2022,7 @@ P1:
 		g.offset = ProgBase + assembled.size();
 		g.offset = g.offset / 4;
 		g.type = TYPE_CODE;		
-
+		gfuncname = buff1[0];
 		if (CheckandUpdateOffset(g.name, g.offset) == 0)
 			gGlobalLabels.push_back(g);
 		gLocalVariables.clear();
@@ -1860,12 +2055,15 @@ P1:
 			name = gOpcodes.at(j).instname;
 			if (name != token)
 				continue;
+			if (name == "move") {
+				int krr = 0;
+			}
 			type = gOpcodes.at(j).insttype;
 			rtype = gOpcodes.at(j).resulttype;
 			opcode = gOpcodes.at(j).opcode;
 			ProcessFuncPtr pFunc = gOpcodes.at(j).func;
 			branchType = (name.find("!") == string::npos) ? false : true;
-			cmdsize = pFunc(line, type, opcode, rtype, buff, branchType);	//#first call assembly, Here we can get correct function and label address
+			cmdsize = pFunc(line, type, opcode, rtype, buff, linenum, branchType);	//#first call assembly, Here we can get correct function and label address
 			break;
 		}
 	}
@@ -1980,18 +2178,24 @@ void WriteToFile(string outfile) {
 	unsigned short staticbase = checkStaticBaseLabel();
 	startPosition = startPosition / ALIGNMENT;
 	int ns = sizeof(ZHEADER);
+	int divider = (zversion > 5) ? 8 : 4;
+	
+	while (assembled.size() % divider)
+		assembled.push_back(0);
+
 	ZHEADER zh = { 0 };
 	FILE *fp = fopen(outfile.c_str(), "wb");
-	zh.ver = 6;
+	zh.ver = zversion;
 	zh.highMemBase = ToBigEndian(ProgBase);
-	zh.entry = ToBigEndian(ProgBase / 4);
+	zh.entry = (zversion > 5) ? ToBigEndian(ProgBase / 4) : ToBigEndian(ProgBase + 1);
 	zh.staticMemBase = ToBigEndian(staticbase);
-	zh.filelen = ToBigEndian((ProgBase + assembled.size()) / 8);
+	zh.filelen = ToBigEndian((ProgBase + assembled.size()) / divider);
 	zh.routineoffset = 0;
 	zh.staticstringoffset = 0;
 	zh.loc_global = ToBigEndian(globaladdr);
 	zh.loc_objtable = ToBigEndian(objectaddr);
-
+	zh.releasenumber = rand() % 0x100;
+	makeSerial(zh.serial);
 	fwrite(&zh, sizeof(ZHEADER), 1, fp);
 
 	int i;
@@ -2014,6 +2218,41 @@ void WriteToFile(string outfile) {
 	}
 	fclose(fp);
 }
+void makeSerial(char*p) {
+	int i,j;
+	for (i = 0; i < gGlobalLabels.size(); i++) {
+		GLOBALS gb = gGlobalLabels.at(i);
+		if (gb.name == "%serial") {
+			for (j = 0; j < 6; j++)
+				p[j] = gb.value.at(j) + 0x30;
+			break;
+		}
+	}
+}
+string getFileName(string org) {
+	string s = org;
+	size_t pos = 0;
+	string deli = ".";
+	int i;
+
+	for (i = 0; i < gGlobalLabels.size(); i++) {
+		GLOBALS gb = gGlobalLabels.at(i);
+		if (gb.name == "%zversion") {
+			zversion = gb.value.at(0);
+			break;
+		}
+	}
+	string ext = to_string(zversion);
+	ext = ".z" + ext;
+	
+	std::string token;
+	string path = "";
+	pos = s.rfind(deli);
+	if (pos == string::npos)
+		return s + ext;
+	s.erase(pos);
+	return s + ext;
+}
 int main(int argc, char** argv) {
 	printf("My Zasm version 0.1\n");
 
@@ -2032,7 +2271,8 @@ int main(int argc, char** argv) {
 	ReadLinebyLine(&infile);				//Read file 
 	firstAssemble = 1;
 	Assembly();								//Get Assembly
-	WriteToFile(inname + ".z6");			//Write assembly to file
+	inname = getFileName(inname);
+	WriteToFile(inname);			//Write assembly to file
 	infile.close();							//close input file.
 	return 0;
 }
