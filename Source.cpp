@@ -353,10 +353,7 @@ void print_function(string arg) {
 	arg.erase(0, 1);					//Erase first and last character "
 	arg.erase(arg.length() - 1, 1);
 	arg = str_replace(arg, """", "\""); // "" is replaced \"
-	if (arg.find('"') != string::npos) {	//If 
-		cout << "Invalid print string" << arg << endl;
-		return;
-	}
+	
 	char chbuff[MAXCHARS] = { 0 };
 	int i, nsize;
 	nsize = ZStringEncode(arg.c_str(), chbuff);	//encode string to zscii
