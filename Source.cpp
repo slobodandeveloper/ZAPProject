@@ -13,8 +13,8 @@
 
 using namespace std;
 
-int ProgBase = 0x4000;					//High memory base
-int DataBase = 0x1000;						//Dynamic and static memory
+int ProgBase = 0x1000;					//High memory base
+int DataBase = 0x40;					//Dynamic and static memory
 int firstAssemble = 0;					//first pass or second pass assembly
 ////////////////////////////////////////////////////////////
 // Declare structures
@@ -22,11 +22,11 @@ int firstAssemble = 0;					//first pass or second pass assembly
 typedef int(*ProcessFuncPtr)(string args, string type, int opcode, string flags, int linenum, bool bBranchType,bool xcall);
 
 typedef struct INSTRUCTION_INFO {
-	string instname;
-	string insttype;
-	int opcode;
-	string resulttype;
-	ProcessFuncPtr func;
+	string instname;				//Instruction name
+	string insttype;				//Instruction type
+	int opcode;						//opcode
+	string resulttype;				//result type
+	ProcessFuncPtr func;			//process function
 } STINSTRUCTION, *LPSTINSTRUCTION;
 
 typedef struct ZHEADER {
@@ -76,45 +76,45 @@ typedef struct ZOBJECT{
 	short LOC;			//Parent Position
 	short FIRST;		//First sibling
 	short NEXT;			//Siblings	
-	short proptable;
+	short proptable;	//prop table address
 	int offset;
-	int objnum;
+	int objnum;			//object number 1~63
 } stZObject;
 
-struct TABLEITEM{
+struct TABLEITEM{		//Table's item
 	string type;
 	vector<short> data;
 	int offset;
 };
 struct TABLE {
-	string name;
+	string name;				//Tables
 	int maxsize;
 	vector<TABLEITEM> items;
 	int offset;
 };
-struct GLOBALS {
+struct GLOBALS {				//Global label's
 	string datatype;
 	string name;
 	vector<unsigned short> value;
 	int type;
 	int offset;
 };
-struct GLOBALVARIABLE{
+struct GLOBALVARIABLE{				//Global variables
 	string name;
 	vector<unsigned short> value;
 	char num;
 	int offset;
 };
-struct LOCALVARIABLE {
+struct LOCALVARIABLE {			//Local variables
 	string name;
 	char localnum;
 };
-struct LOCALLABEL {
+struct LOCALLABEL {				//
 	string name;
 	string functionname;
 	int offset;
 };
-#define OPCODE_COUNT	112
+#define OPCODE_COUNT	113
 #define DELIMITER	" "
 #define COMMENTCHAR	';'
 #define ALIGNMENT	4
@@ -126,13 +126,15 @@ vector<char> assembled;					//assembled code
 vector<char> databytes;					//assembled data bytes
 vector<string> gInstructions;			//string by lines;
 vector<STINSTRUCTION> gOpcodes;			//opcode table
-vector<GLOBALS> gGlobalLabels;
-vector<TABLE> gTables;
-vector<ZOBJECT> gObjects;
-vector<GLOBALVARIABLE> gVariables;
-vector<LOCALVARIABLE> gLocalVariables;
-vector<LOCALLABEL> gLocalLabels;
-int zversion = 6;					//
+vector<GLOBALS> gGlobalLabels;			//global label
+vector<TABLE> gTables;					//tables
+vector<ZOBJECT> gObjects;				//objects
+vector<GLOBALVARIABLE> gVariables;		//global variables
+vector<LOCALVARIABLE> gLocalVariables;	//local variables
+vector<LOCALLABEL> gLocalLabels;		//local labels
+int zversion = 6;					//default version
+string serialnum = "";				//serial number
+unsigned short releasenum = 1;		//program's release number
 int global_num = 16;				//Global variable number
 int object_num = 1;					//Global object number;
 string gfuncname;					//Current function name
@@ -256,23 +258,23 @@ STINSTRUCTION codeTable_YZIP[255] = {
 ///////////////////////
 //Special purpose function declaration
 ////////////////////////
-void jump_function(string name);
-void print_function(string arg);
-char GetOperandType(string arg);
-char get2opArgment(string arg);
-char Get2_ExtArgType(string arg);
-bool CheckandUpdateOffset(string name, int offset);
+void jump_function(string name);		//jump opcodes functions
+void print_function(string arg);		//printi, printf functions
+char GetOperandType(string arg);		//Get Operand type.
+char get2opArgment(string arg);			//Get opcode 2 argument
+char Get2_ExtArgType(string arg);		//opcode2_ext function's argument type
+bool CheckandUpdateOffset(string name, int offset);	//update offset(if is exist only update offset)
 bool CheckandUpdateGVariable(string name, int offset);
 bool CheckandUpdateObj(string name, int offset);
 bool CheckandUpdateTable(string name, int offset);
-unsigned short GetOperandValues(string arg,unsigned char *valsize);
+unsigned short GetOperandValues(string arg,unsigned char *valsize);	//Get Operand value
 /////////////////////////////////////
 // String functions
 /////////////////////////////////////
-string & ltrim(string & str);
+string & ltrim(string & str);	
 string & rtrim(string & str);
 string trim(string &s);
-string & makebackslash(string &s);
+string & makebackslash(string &s);	
 void ZcharEncode(char chin, vector<char>*zcharstr);
 int ZStringEncode(const char *pin, char*pout);
 bool is_number(string s);
@@ -297,111 +299,175 @@ void makeSerial(char*p);
 //////////////////////////////////////////////////////////////
 // Special function implementation
 ////////////////////////////////////////////////////////////
+/*
+parameter : name
+This is jump label, for example jump /jumppos
+	jump /jumppos
+...
+...
+jumppos:
+	PRINTI "This is jump position"
+This function generate opcode for jump.
+*/
 void jump_function(string name) {
-	assembled.push_back(140);
-	int pos = ProgBase + assembled.size();
-	bool exist = 0;
-	unsigned short temp;
+	assembled.push_back(140);				//jump opcode is 140
+	int pos = ProgBase + assembled.size();  //current cmd position
+	unsigned short temp;					//temperate varialbe
 	unsigned char ch;
-	temp = getOffset(name,&ch);
+	temp = getOffset(name,&ch);				//get jump offset
 	if (temp) {
-		temp = (temp - pos) & 0xFFFF;
-		assembled.push_back(temp >> 8);
-		assembled.push_back(temp & 0xFF);
+		temp = (temp - pos) & 0xFFFF;		//convert new position to byte array and add it.
+		assembled.push_back(temp >> 8);		//top byte
+		assembled.push_back(temp & 0xFF);	//low byte
 	}
 	if (temp == 0) {
-		if (firstAssemble == 1) {
+		if (firstAssemble == 1) {			//if first pass assemble, offset is 0
 			assembled.push_back(0);
 			assembled.push_back(0);
 		}
 		else {
-			cout << "Invalid jmp label:" << name << endl;
+			cout << "Invalid jmp label:" << name << endl;	//if second pass, and not exist, it will be error;
 			exit(1);
 		}
 	}
 	return;
 }
+/*
+parameter : string arg
+This is string to display;
+
+PRINTI "This is a string."
+
+Strins have to start " and end ".
+
+*/
 void print_function(string arg) {
 	if (arg.at(0) != '"') {
-		cout << "Invalid print string" << arg << endl;
+		cout << "Invalid print string" << arg << endl;	//Check string
 		return;
 	}
 	if (arg.back() != '"') {
-		cout << "Invalid print string" << arg << endl;
+		cout << "Invalid print string" << arg << endl;	//Check string.
 		return;
 	}
-	arg.erase(0, 1);
+	arg.erase(0, 1);					//Erase first and last character "
 	arg.erase(arg.length() - 1, 1);
-	if (arg.find('"') != string::npos) {
+	arg = str_replace(arg, """", "\""); // "" is replaced \"
+	if (arg.find('"') != string::npos) {	//If 
 		cout << "Invalid print string" << arg << endl;
 		return;
 	}
 	char chbuff[MAXCHARS] = { 0 };
 	int i, nsize;
-	nsize = ZStringEncode(arg.c_str(), chbuff);
-	assembled.push_back(178);
+	nsize = ZStringEncode(arg.c_str(), chbuff);	//encode string to zscii
+	assembled.push_back(178);					//printi opcode;
 	for (i = 0; i < nsize; i++) {
-		assembled.push_back(chbuff[i]);
+		assembled.push_back(chbuff[i]);			//push opcodes
 	}
 	return;
 }
+/*
+parameter : string name
+			int offset
+return value : bool
+			whether name exist or not.
 
+when first assemble, all offset is zero
+and second assemble, we have to update only offset.
+*/
 bool CheckandUpdateOffset(string name, int offset) {
 	int i;
 	bool bex = 0;
-	for (i = 0; i < gGlobalLabels.size(); i++) {
+	for (i = 0; i < gGlobalLabels.size(); i++) {	//Get Labels size and loop
 		GLOBALS st = gGlobalLabels.at(i);
-		if (strlower(st.name) == strlower(name)) {
-			if (st.offset == 0)
-				gGlobalLabels.at(i).offset = offset;
-			bex = 1;
+		if (strlower(st.name) == strlower(name)) {		//Check label name
+			if (st.offset == 0)							//if offset is 0
+				gGlobalLabels.at(i).offset = offset;	//update offset
+			bex = 1;									//update flag
 			break;
 		}
 	}
 	return bex;
 }
+/*
+parameter : string name			: local label name
+			string funcname		: function's name
+			int offset			: label offset
+return value : bool
+			whether name exist or not.
+
+when first assemble, all offset is zero
+and second assemble, we have to update only offset.
+*/
 bool CheckandUpdateLocal(string name, string funcname, int offset) {
 	int i;
 	bool bex = 0;
-	for (i = 0; i < gLocalLabels.size(); i++) {
+	for (i = 0; i < gLocalLabels.size(); i++) {		//check label loop
 		LOCALLABEL st = gLocalLabels.at(i);
 		if (strlower(st.name) == strlower(name) && strlower(st.functionname) == strlower(funcname)) {
 			if (st.offset == 0)
-				gLocalLabels.at(i).offset = offset;
+				gLocalLabels.at(i).offset = offset;	//update offset
 			bex = 1;
 			break;
 		}
 	}
 	return bex;
 }
+/*
+parameter :			string name			: table name					
+					int offset			: label offset
+return value : bool
+whether name exist or not.
+
+when first assemble, all offset is zero
+and second assemble, we have to update only offset.
+*/
 bool CheckandUpdateTable(string name, int offset) {
 	int i;
 	bool bex = 0;
 	for (i = 0; i < gTables.size(); i++) {
 		TABLE st = gTables.at(i);
-		if (strlower(st.name) == strlower(name)) {
+		if (strlower(st.name) == strlower(name)) {		//table name compare
 			if (st.offset == 0)
-				gTables.at(i).offset = offset;
+				gTables.at(i).offset = offset;			//update offset
 			bex = 1;
 			break;
 		}
 	}
 	return bex;
 }
+/*
+parameter :				string name			: object name
+						int offset			: label offset
+return value : bool
+				whether name exist or not.
+
+when first assemble, all offset is zero
+and second assemble, we have to update only offset.
+*/
 bool CheckandUpdateObj(string name, int offset) {
 	int i;
 	bool bex = 0;
 	for (i = 0; i < gObjects.size(); i++) {
 		ZOBJECT st = gObjects.at(i);
-		if (strlower(st.objname) == strlower(name)) {
+		if (strlower(st.objname) == strlower(name)) {	//check name
 			if (st.offset == 0)
-				gObjects.at(i).offset = offset;
+				gObjects.at(i).offset = offset;	//update offset
 			bex = 1;
 			break;
 		}
 	}
 	return bex;
 }
+/*
+parameter :			string name			: global variable name
+					int offset			: label offset
+return value : bool
+					whether name exist or not.
+
+when first assemble, all offset is zero
+and second assemble, we have to update only offset.
+*/
 bool CheckandUpdateGVariable(string name, int offset) {
 	int i;
 	bool bex = 0;
@@ -416,64 +482,113 @@ bool CheckandUpdateGVariable(string name, int offset) {
 	}
 	return bex;
 }
+/*
+parameter :			string arg			: string name of variable
+					
+return value : int
+			   if assigned variable return 1~255
+			   else return 0
+First remove prefixs like ' and >
+return get variable number
+*/
 int GetVariableNumber(string arg) {
-	arg = str_replace(arg, "'", "");
-	arg = str_replace(arg, ">", "");
-	int i,pos = gLocalVariables.size();
+	arg = str_replace(arg, "'", "");			//remove '
+	arg = str_replace(arg, ">", "");			//remove >
+	int i,pos = gLocalVariables.size();				//check local variable first
 	for (i = 0; i < pos; i++)
 	{
-		LOCALVARIABLE lv = gLocalVariables.at(i);
-		if (trim(lv.name) == trim(arg))
-			return lv.localnum;
+		LOCALVARIABLE lv = gLocalVariables.at(i);		
+		if (trim(lv.name) == trim(arg))			//compare name
+			return lv.localnum;					//return variable number
 	}
-	pos = gVariables.size();
+	pos = gVariables.size();					//global variables list.
 	for (i = 0; i < pos; i++)
 	{
-		GLOBALVARIABLE gv = gVariables.at(i);
+		GLOBALVARIABLE gv = gVariables.at(i);	//check with global variable name
 		if (trim(gv.name) == trim(arg))
-			return gv.num;
+			return gv.num;						//return variable number
 	}
-	return 0;
+	return 0;								//can not found, then return 0
 }
+/*
+parameter :			string arg			: string name of variable
+
+return value : char 0~3
+				00 : long imm or offset
+				01 : imm
+				10 : variable
+				11 : undefined
+
+Check arg is variable first. then return 2 : 10
+and check ', If ' then that is imm value.
+if arg is number and >=0 and < 256 then return 01;
+if arg is object name then return imm
+and return 0 : long imm
+*/
 char GetOperandType(string arg) {
 	int i;
 	arg = trim(arg);
-	int gv = GetVariableNumber(arg);
+	int gv = GetVariableNumber(arg);	//Is variable
 	if (arg.find("'") != string::npos )	//if set 'x, 10 then x is not variable x is imm type
-		return 1;
-	if (gv != 0)	//This is variable
-		return 2;//10
-	if (is_number(arg))
+		return 1;					//01 is imm type
+	if (gv != 0)					//This is variable
+		return 2;					//10 is variable
+	if (is_number(arg))				//is imm?
 	{
-		if (stoi(arg) < 256 && stoi(arg) >= 0)
+		if (stoi(arg) < 256 && stoi(arg) >= 0)	//if value >=
 			return 1; //01
 	}
-	for (i = 0; i < gObjects.size(); i++) {
+	for (i = 0; i < gObjects.size(); i++) {			//check arg is object name
 		ZOBJECT st = gObjects.at(i);
 		if (strlower(st.objname) == strlower(arg))
-			return 1;
+			return 1;					//return 01
 	}
 	return 0;// This operand is long imm or offset varialbe
 }
-char Get2_ExtArgType(string arg) {
-	if (arg == "")
-		return 3;
+/*
+parameter :			string arg			: string name of variable
 
-	char ch = GetOperandType(arg);
-	if (ch == 1)
-		return 1;
-	if (ch == 2)
-		return 2;
-	if (is_number(arg)) {
-		if (stoi(arg) >= 256)
+return value :	char 0~3
+00 : long imm
+01 : imm
+10 : variable
+11 : no more operand
+
+This function check arg2 and ext argument count and type.
+if arg is emptry string then no more operand(3) returns.
+
+*/
+char Get2_ExtArgType(string arg) {
+	if (arg == "")						//if string is empty
+		return 3;						//no more operand
+
+	char ch = GetOperandType(arg);		//get operand type
+	if (ch == 1)						//1 means immediate
+		return 1;						//return 01 : immediate
+	if (ch == 2)						//2 means variable
+		return 2;						//return 2;
+	if (is_number(arg)) {				//if arg is number and bigger than 256
+		if (stoi(arg) >= 256)			//then that is long imm
 			return 0;
 	}
 	unsigned char chtype;
-	unsigned short temp = getOffset(arg, &chtype);
-	if (chtype == 3)
-		return 1;
-	return 0;
+	unsigned short temp = getOffset(arg, &chtype);	//get offset type
+	if (chtype == 3)	//chtype 3 means imm
+		return 1;			//return 1	//imm
+	return 0;				//return 0 : long imm
 }
+/*
+parameter :			string arg			: string name of variable
+					unsigned char *ptye : offset type
+return value :	unsigned short(offset)
+
+This function check local label's list first with name and function name
+if exist then offset return;
+if not exist then check global label with name
+if global data's type is imm and
+if not exist then check oject list.
+
+*/
 unsigned short getOffset(string arg, unsigned char*ptype) {
 	int i;
 	unsigned short temp = 0;
@@ -482,7 +597,7 @@ unsigned short getOffset(string arg, unsigned char*ptype) {
 	for (i = 0; i < gLocalLabels.size(); i++) {
 		LOCALLABEL st = gLocalLabels.at(i);
 		if (strlower(st.name) == strlower(arg) && strlower(gfuncname) == strlower(st.functionname)) {
-			temp = st.offset;
+			temp = st.offset;			//check local labels list
 			exist = 1;
 			break;
 		}
@@ -492,7 +607,7 @@ unsigned short getOffset(string arg, unsigned char*ptype) {
 		for (i = 0; i < gGlobalLabels.size(); i++) {
 			GLOBALS st = gGlobalLabels.at(i);
 			if (strlower(st.name) == strlower(arg)) {
-				if (strlower(st.datatype) == "imm") {
+				if (strlower(st.datatype) == "imm") {		//check global labels
 					temp = st.value.at(0);
 					exist = 3;
 				}				
@@ -509,7 +624,7 @@ unsigned short getOffset(string arg, unsigned char*ptype) {
 		for (i = 0; i < gObjects.size(); i++) {
 			ZOBJECT st = gObjects.at(i);
 			if (strlower(st.objname) == strlower(arg)) {
-				temp = st.objnum;
+				temp = st.objnum;		//check object list
 				exist = 3;
 				break;
 			}
@@ -518,59 +633,101 @@ unsigned short getOffset(string arg, unsigned char*ptype) {
 	*ptype = exist;
 	return temp;
 }
+/*
+parameter :			string arg			: string name of variable
+					unsigned char *valsize : databytes count
+return value :	unsigned short(operand value)
+
+This function get operand value.
+remove ' and > first in argument
+get operand type and value;
+*/
+
 unsigned short GetOperandValues(string arg, unsigned char *valsize) {
 	int i;
-	arg = str_replace(arg, "'", "");
-	arg = str_replace(arg, ">", "");
-	arg = trim(arg);
-	char ch = GetOperandType(arg);
+	arg = str_replace(arg, "'", "");		//remove '
+	arg = str_replace(arg, ">", "");		//remove >
+	arg = trim(arg);						//remove spaces
+	char ch = GetOperandType(arg);			//get operand type
 	unsigned short temp;
-	if (ch == 2) {
-		short gn = GetVariableNumber(arg);
+	if (ch == 2) {							//argument is varialbe
+		short gn = GetVariableNumber(arg);		//get variable number
 		temp = gn;
-		*valsize = 1;
+		valsize[0] = 1;							//data size is 1
 	}
-	else if (ch == 1 && is_number(arg)) {
-		temp = stoi(arg);
-		*valsize = 1;
+	else if (ch == 1 && is_number(arg)) {		//imm and arg is number then
+		temp = stoi(arg);						//data size  = 1
+		valsize[0] = 1;
 	}
 	else {
-
 		if (is_number(arg)) {		//Long imm
-			temp = stoi(arg);
-			*valsize = 2;
+			temp = stoi(arg);		//data size = 2
+			valsize[0] = 2;
 		}
 		else {
-			unsigned char ptype;
-			temp = getOffset(arg, &ptype);
-			*valsize = (ptype == 3) ? 1 : 2;
+			unsigned char ptype;					//offset
+			temp = getOffset(arg, &ptype);				//get offset
+			valsize[0] = (ptype == 3) ? 1 : 2;	//if ptype ==3(imm) or long imm
 			if (temp == 0) {
-				if (firstAssemble == 0)
-					cout << "Error found:" << arg << endl;
+				if (firstAssemble == 0) {					//check offset
+					cout << "Error found:" << arg << endl;	//not exist in second assemble then error.
+					exit(1);
+				}
 			}
 		}
 	}
 	return temp;
 }
+/*
+parameter :			string arg			: string name of variable
+
+return value :	char
+				00 : immediate, immediate
+				01 : immediate, variable
+				10 : variable, immediate
+				11 : variable, variable
+				so it returns 0 or 1
+				0 : immediate
+				1 : variable
+This function check arg is integer and >=0 and < 256 then return 0
+check arg is variable then return 1
+error value is -1(long imm or offset)
+*/
+
 char get2opArgment(string arg) {
-	if (is_number(arg)) {
-		if (stoi(arg) >= 0 && stoi(arg) < 256)
-			return 0;
+	if (is_number(arg)) {			//check integer and 
+		if (stoi(arg) >= 0 && stoi(arg) < 256)		//range
+			return 0;				//return 0
 	}
-	int val = GetVariableNumber(arg);
-	if (val != 0)
-		return 1;
-	return -1;
+	int val = GetVariableNumber(arg);		//is variable
+	if (val != 0)		
+		return 1;					//return 1;
+	return -1;			//error returm
 }
 /////////////////////////////////////////////////////////
 // string functions
 ////////////////////////////////////////////////////////
+/*
+parameter :			string &str		
+
+return value :	string &
+removes left space " abcd"=>"abcd"
+
+*/
+
 string & ltrim(string & str)
 {
 	auto it2 = find_if(str.begin(), str.end(), [](char ch){ return !isspace<char>(ch, locale::classic()); });
 	str.erase(str.begin(), it2);
 	return str;
 }
+/*
+parameter :			string &str		
+
+return value :	string &
+removes right space "abcd "=>"abcd"
+
+*/
 
 string & rtrim(string & str)
 {
@@ -578,11 +735,24 @@ string & rtrim(string & str)
 	str.erase(it1.base(), str.end());
 	return str;
 }
+/*
+parameter :			string &str
+
+return value :	string &
+removes left and right space " abcd		"=>"abcd"
+*/
+
 string trim(string &s) {
 	ltrim(s);
 	rtrim(s);
 	return s;
 }
+/*
+parameter :			string &s
+
+return value :	string &
+removes \\ to \
+*/
 string & makebackslash(string &s) {
 	int pos = s.find("\\n");
 	if (pos != string::npos) {
@@ -602,98 +772,150 @@ string & makebackslash(string &s) {
 	s = str_replace(s, "\"", "");
 	return s;
 }
+/*
+parameter :			char chin : input ascii char
+					vector<char> *zcharstr : zscii char array
+
+return value :	void
+convert character chin to zscii char
+if chin is space then zscii code is 0
+check a0, a1, a2 charset and find zscii value
+*/
 void ZcharEncode(char chin, vector<char>*zcharstr) {
-	char a0[] = "abcdefghijklmnopqrstuvwxyz";
-	char a1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	char a2[] = "\n0123456789.,!?_#'\"/\\-:()";
-	if (chin == ' ') {
-		zcharstr->push_back(0);
+	char a0[] = "abcdefghijklmnopqrstuvwxyz";		//a0 charset
+	char a1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";		//a1 charset
+	char a2[] = "\n0123456789.,!?_#'\"/\\-:()";		//a2 charset
+	if (chin == ' ') {					//if chin is space
+		zcharstr->push_back(0);			//zscii code is 0
 		return;
 	}
 	int i;
-	for (i = 0; i < 26; i++) {
-		if (a0[i] == chin) {
-			zcharstr->push_back(i + 6);
+	for (i = 0; i < 26; i++) {			//check a0 charset
+		if (a0[i] == chin) {			//if found
+			zcharstr->push_back(i + 6);	//zscii code is 6 + i
 			return;
 		}
 	}
-	for (i = 0; i < 26; i++) {
+	for (i = 0; i < 26; i++) {			//check a1 charset
 		if (a1[i] == chin) {
-			zcharstr->push_back(4);
-			zcharstr->push_back(i + 6);
+			zcharstr->push_back(4);		//4 means a1
+			zcharstr->push_back(i + 6);	//return zscii code
 			return;
 		}
 	}
-	for (i = 0; i < 26; i++) {
+	for (i = 0; i < 26; i++) {			//check a2 charset
 		if (a2[i] == chin) {
-			zcharstr->push_back(5);
-			zcharstr->push_back(i + 7);
+			zcharstr->push_back(5);		//5 means a2
+			zcharstr->push_back(i + 7);	//return zscii
 			return;
 		}
 	}
-	zcharstr->push_back(5);
+	zcharstr->push_back(5);				//not found then default codes
 	zcharstr->push_back(6);
 	zcharstr->push_back(chin >> 5);
 	zcharstr->push_back(chin & 0x1F);
 }
+/*
+parameter :			char *pin  (string to encode "This is... "
+					char *pout (outputbuffer, zscii code bytes 0x94, 0xA5 ,...)
+
+return value :	int
+				Byte length of zscii codes
+
+check input string is empty then return 0x94A5( and return 2(byte length) this is null zscii string)
+convert every ascii character to zscii.
+padding zscii code with 5 until mod 3=0
+convert zscii code to byte array.
+every zscii code is 5 bytes and 3 zscii codes are make 2 byte.
+last 3 zscii code make also 2 byte but most significant byte is 1
+
+*/
 int ZStringEncode(const char *pin, char*pout) {
 	int i, j = 0;
-	string temp = pin;
-	temp = makebackslash(temp);
-	if (temp == "") {
+	string temp = pin;					//input string
+	temp = makebackslash(temp);			//remove \\ to
+	if (temp == "") {					//if input string is empty output buffer is 0x94a5
 		pout[0] = 0x94;
 		pout[1] = 0xA5;
-		return 2;
+		return 2;						//byte length is 2
 	}
 	vector<char> zcharstr;
-	for (i = 0; i < temp.length(); i++) {
+	for (i = 0; i < temp.length(); i++) {	//calculate every ascii characters
 		ZcharEncode(temp.at(i), &zcharstr);
 	}
-	while (zcharstr.size() < 0 || zcharstr.size() % 3 != 0)
+	while (zcharstr.size() < 0 || zcharstr.size() % 3 != 0)	//if zchar length mod 3 is not 0 then padding with 5
 		zcharstr.push_back(5);
 	unsigned short v;
 	unsigned short ch1;
 	unsigned short ch2;
 	unsigned short ch3;
 	int nsize = zcharstr.size();
-	for (i = 0; i < nsize - 3; i += 3) {
-		ch1 = zcharstr.at(i);
-		ch2 = zcharstr.at(i + 1);
-		ch3 = zcharstr.at(i + 2);
-		v = (ch1 << 10) | (ch2 << 5) | ch3;
-		pout[j] = v >> 8;
+	for (i = 0; i < nsize - 3; i += 3) {		//every 3 characters
+		ch1 = zcharstr.at(i);					//character1
+		ch2 = zcharstr.at(i + 1);				//character2
+		ch3 = zcharstr.at(i + 2);				//character3
+		v = (ch1 << 10) | (ch2 << 5) | ch3;		//make 2byte code
+		pout[j] = v >> 8;						//fill output buffer
 		pout[j + 1] = v & 0xff;
 		j += 2;
 	}
-	ch1 = zcharstr.at(nsize - 3);
-	ch2 = zcharstr.at(nsize - 2);
-	ch3 = zcharstr.at(nsize - 1);
-	v = 0x8000 | (ch1 << 10) | (ch2 << 5) | ch3;
-	pout[j] = v >> 8;
+	ch1 = zcharstr.at(nsize - 3);				//last three zchar1
+	ch2 = zcharstr.at(nsize - 2);				//char2
+	ch3 = zcharstr.at(nsize - 1);				//char3
+	v = 0x8000 | (ch1 << 10) | (ch2 << 5) | ch3;	//make 2 byte, 0x8000 means this is last byte
+	pout[j] = v >> 8;						//fill output buffer
 	pout[j + 1] = v & 0xff;
 	return j + 2;
 }
+/*
+parameter :			string s
+
+return value :	bool
+check input string is number or not.
+check - sign first. -1 is also number
+*/
 bool is_number(string s)
 {
-	if (s == "")
+	if (s == "")				//if empty then not number
 		return false;
 	if (s.at(0) == '-') {
-		s = str_replace(s, "-", "");
+		s = s.replace(0, 1, "");//remove - sign
 	}
 	std::string::const_iterator it = s.begin();
 	while (it != s.end() && std::isdigit(*it)) ++it;
 	return !s.empty() && it == s.end();
 }
+/*
+parameter :			string arg
+
+return value :	string
+make string lower "AbdF"=>"abdf"
+*/
 string strlower(string arg)
 {
 	transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
 	return arg;
 }
+/*
+parameter :			string arg
+
+return value :	string
+make string upper "AbdF"=>"ABDF"
+*/
 string strupper(string arg)
 {
 	transform(arg.begin(), arg.end(), arg.begin(), ::toupper);
 	return arg;
 }
+/*
+parameter :			string arg1,
+					char arg2
+					char arg3
+
+return value :	string
+replace arg2 in arg1 with arg3
+example : str_replace("ABCD",'B','C')=>"ACCD"
+*/
 string str_replace(string arg1, char arg2, char arg3) {
 	size_t pos; int i;
 	for (i = 0; i < arg1.length(); i++)
@@ -704,6 +926,15 @@ string str_replace(string arg1, char arg2, char arg3) {
 	}
 	return arg1;
 }
+/*
+parameter :			string arg1,
+string arg2
+string arg3
+
+return value :	string
+replace arg2 in arg1 with arg3
+example : str_replace("ABCD","B","C")=>"ACCD"
+*/
 string str_replace(string arg1, string arg2, string arg3){
 	int pos;
 	int n = arg2.length();
@@ -718,55 +949,70 @@ string str_replace(string arg1, string arg2, string arg3){
 /////////////////////////////////////////////////////////
 // main functions
 /////////////////////////////////////////////////////////
+/*
+parameter :			string arg (ARGUMENT STRING)
+					string type (0OP or 1op or 2op or ext)
+					int opcode (binary value of opcode)
+					string flags (result, branch, or result.branch)
+					int linenum (line number)
+					bool branchtype (branchtype : true or false, used very rarely)
+					bool xcall(this is only for xcall and ixcall)
+return value : int
+				generated opcode's length
+
+This function generate opcode from inputed string.
+arg is only argument string, opcode string changed opcode integer.
+
+*/
 int MakeByteFromOpcode(string args, string type, int opcode, string flags, int linenum, bool bBranchType = false,bool xcall=false) {
-	int pos, tokencount = 0,i;
+	int pos, tokencount = 0,i;	//token count is argument count
 	unsigned short temp;
-	string token, arg = args;
-	vector<string> optokens;
-	vector<char> opcodes;
-	string resultop;
-	string jump_name;
-	string buff[100];
+	string token, arg = args;	//token means separate argument
+	vector<string> optokens;	//optokens are argument list
+	vector<char> opcodes;		//opcode is generated bytes
+	string resultop;			//resultop is result argument
+	string jump_name;			//jump_name is branch argument
+	string buff[100];			//buff means argument array
 	unsigned char valsize;
-	int ccnt = Split(args, DELIMITER, buff);
-	if (flags == "branch")
+	int ccnt = Split(args, DELIMITER, buff);	//split args using space " "
+	if (flags == "branch")		//if branch instrunction final argument is branch
 	{
-		jump_name = buff[ccnt];
+		jump_name = buff[ccnt];	//get branch arguemnt
 	}
-	if (flags == "result")
-	{
-		resultop = buff[ccnt];
+	if (flags == "result")		//if result instrunction final is result argument
+	{	
+		resultop = buff[ccnt];	//get result argument
 	}
-	if (flags == "result.branch") {
+	if (flags == "result.branch") {	//if result and branch instruction
 		if (ccnt < 1) {
 			cout << "line number : " << linenum << " argument count error." << endl;
 			exit(1);
 		}
-		jump_name = buff[ccnt];
-		resultop = buff[ccnt - 1];
+		jump_name = buff[ccnt];		//get jump_name argument
+		resultop = buff[ccnt - 1];	//get result argument name
 	}
 	
-	arg = str_replace(args, jump_name, "");
-	arg = str_replace(arg, resultop, "");
-	arg = trim(arg);
-	jump_name = str_replace(jump_name, "/", "");
-	jump_name = str_replace(jump_name, "\\", "");
-	while ((pos = arg.find(",")) != string::npos) {
+	arg = str_replace(args, jump_name, "");		//remove jump names from arg
+	arg = str_replace(arg, resultop, "");		//remove result op from arg
+	arg = trim(arg);							//remove spaces from arg
+	jump_name = str_replace(jump_name, "/", "");		//jump name can start / or \\. we have to remove it
+	jump_name = str_replace(jump_name, "\\", "");		
+	while ((pos = arg.find(",")) != string::npos) {	//split args into arguments list
 		token = arg.substr(0, pos);
 		token = trim(token);
 		optokens.push_back(token);
 		arg.erase(0, pos + 1);
 	}
 	if (arg != "")
-		optokens.push_back(arg);
-	tokencount = optokens.size();
+		optokens.push_back(arg);					//get last arguments
+	tokencount = optokens.size();					//argument length;
 
 	if (type == "0op") {	
 		if (tokencount != 0) {
 			cout << "Too many argument error:" << linenum << ":" << arg << endl;
 			exit(1);
 		}
-		opcodes.push_back(0xB0 | opcode);
+		opcodes.push_back(0xB0 | opcode);		//0 opcode
 	}
 	else if (type == "1op") {
 		if (tokencount != 1) {
@@ -774,105 +1020,109 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, int l
 			exit(1);
 		}
 		
-		string val = optokens.at(0);
+		string val = optokens.at(0);			//1 op argument count is 1
 		val = trim(val);
-		unsigned char oval = GetOperandType(val);//argcode
-		temp = 0x80 | (oval << 4) | opcode;
+		unsigned char oval = GetOperandType(val);//argcode 
+		temp = 0x80 | (oval << 4) | opcode;		//get opcode
 		opcodes.push_back(temp & 0xff);
 		
-		temp = GetOperandValues(val, &valsize);	//argbin
-		if (valsize == 2)
+		temp = GetOperandValues(val, &valsize);	//get operand value
+		if (valsize == 2)						//value size is 2?
 		{
-			opcodes.push_back(temp >> 8);
+			opcodes.push_back(temp >> 8);		//push 2 bytes
 			opcodes.push_back(temp & 0xff);
 		}
 		else{
-			opcodes.push_back(temp & 0xff);
+			opcodes.push_back(temp & 0xff);		//push 1byte
 		}
 	}
 	else if (type == "2op") {
 		if (tokencount != 2) {
-			cout << "Too many argument error:" << linenum << ":" << arg << endl;
+			cout << "Too many argument error:" << linenum << ":" << arg << endl;	//
 			exit(1);
 		}
-		string arg1 = optokens.at(0);
-		string arg2 = optokens.at(1);
+		string arg1 = optokens.at(0);			//first argument
+		string arg2 = optokens.at(1);			//next argument
 		arg1 = trim(arg1);
 		arg2 = trim(arg2);
-		if (get2opArgment(arg1) != -1 && get2opArgment(arg2) != -1) {
-			temp = get2opArgment(arg1) << 6 | get2opArgment(arg2) << 5 | opcode;
-			opcodes.push_back(temp & 0xff);
+		if (get2opArgment(arg1) != -1 && get2opArgment(arg2) != -1) {		//if arguments are imm or variable
+			temp = get2opArgment(arg1) << 6 | get2opArgment(arg2) << 5 | opcode;	//opcode
+			opcodes.push_back(temp & 0xff);				//push opcode
 		
-			temp = GetOperandValues(arg1, &valsize);
+			temp = GetOperandValues(arg1, &valsize);		//push argument value
 			opcodes.push_back(temp & 0xff);
-			temp = GetOperandValues(arg2, &valsize);
+			temp = GetOperandValues(arg2, &valsize);		//push argument value
 			opcodes.push_back(temp & 0xff);
 		}
-		else {
-			temp = 0xc0 | opcode;
-			opcodes.push_back(temp & 0xff);
-			temp = Get2_ExtArgType(arg1) << 6 | Get2_ExtArgType(arg2) << 4 | 0xF;
-			opcodes.push_back(temp & 0xff);
-			temp = GetOperandValues(arg1, &valsize);
+		else {											//if parameter has long imm or offest?
+			temp = 0xc0 | opcode;						//we can make is using ext
+			opcodes.push_back(temp & 0xff);				//opcode
+			temp = Get2_ExtArgType(arg1) << 6 | Get2_ExtArgType(arg2) << 4 | 0xF; //opcodes are only 2 so we have to fill 0xF
+			opcodes.push_back(temp & 0xff);				//push operand type
+			temp = GetOperandValues(arg1, &valsize);	//get operand value and save
 			if (valsize == 2)
 			{
-				opcodes.push_back(temp >> 8);
-				opcodes.push_back(temp & 0xff);
+				opcodes.push_back(temp >> 8);			//push first byte
+				opcodes.push_back(temp & 0xff);			//push next byte
 			}
 			else{
-				opcodes.push_back(temp & 0xff);
+				opcodes.push_back(temp & 0xff);			//push databyte
 			}
-			temp = GetOperandValues(arg2, &valsize);
+			temp = GetOperandValues(arg2, &valsize);	//get second operand bytes
 			if (valsize == 2)
 			{
-				opcodes.push_back(temp >> 8);
-				opcodes.push_back(temp & 0xff);
+				opcodes.push_back(temp >> 8);			//push first byte			
+				opcodes.push_back(temp & 0xff);			//push next byte
 			}
 			else{
-				opcodes.push_back(temp & 0xff);
+				opcodes.push_back(temp & 0xff);			//push byte
 			}
 		}
 	}
-	else if (type == "ext") {
-		if (tokencount > 4) {
+	else if (type == "ext") {						//opcode type is ext
+		if ((xcall == false && tokencount > 4) || (xcall == true && tokencount > 8)) {
 			cout << "Too many argument error:" << linenum << ":" << arg << endl;
 			exit(1);
 		}
-		string arg1 = optokens.size() > 0 ? optokens.at(0) : "";
-		string arg2 = optokens.size() > 1 ? optokens.at(1) : "";
-		string arg3 = optokens.size() > 2 ? optokens.at(2) : "";
-		string arg4 = optokens.size() > 3 ? optokens.at(3) : "";
+		string arg1 = optokens.size() > 0 ? optokens.at(0) : "";	//get first argument
+		string arg2 = optokens.size() > 1 ? optokens.at(1) : "";	//get second argument
+		string arg3 = optokens.size() > 2 ? optokens.at(2) : "";//get third argument
+		string arg4 = optokens.size() > 3 ? optokens.at(3) : "";//get fourth argument
 		string arg5, arg6, arg7, arg8;
-		if (xcall == true) {
-			arg5 = optokens.size() > 4 ? optokens.at(4) : "";
-			arg6 = optokens.size() > 5 ? optokens.at(5) : "";
-			arg7 = optokens.size() > 6 ? optokens.at(6) : "";
-			arg8 = optokens.size() > 7 ? optokens.at(7) : "";
-			arg5 = trim(arg5);
+		if (xcall == true) {						//if xcall, xcall can have 8 operand.
+			arg5 = optokens.size() > 4 ? optokens.at(4) : ""; //get fifth argument
+			arg6 = optokens.size() > 5 ? optokens.at(5) : "";//get sixth argument
+			arg7 = optokens.size() > 6 ? optokens.at(6) : "";//get seventh argument
+			arg8 = optokens.size() > 7 ? optokens.at(7) : "";//get eighth argument
+			//remove spaces
+			arg5 = trim(arg5);	
 			arg6 = trim(arg6);
 			arg7 = trim(arg7);
 			arg8 = trim(arg8);
 		}
+		//remove spaces
 		arg1 = trim(arg1);
 		arg2 = trim(arg2);
 		arg3 = trim(arg3);
 		arg4 = trim(arg4);
-		if (opcode < 256) {
-			temp = 0xc0 | opcode;
+
+		if (opcode < 256) {				//if opcode < 256
+			temp = 0xc0 | opcode;		//we have to or with 0xc0
 			opcodes.push_back(temp);
 		}
 		else {
-			opcodes.push_back(0xBE);
+			opcodes.push_back(0xBE);	//if less then we have to push 190(0xbe) first and push next operand
 			opcodes.push_back(opcode - 256);
 		}
 		unsigned char t1 = Get2_ExtArgType(arg1) << 6 | Get2_ExtArgType(arg2) << 4 | Get2_ExtArgType(arg3) << 2 | Get2_ExtArgType(arg4);
 		unsigned char t2 = Get2_ExtArgType(arg5) << 6 | Get2_ExtArgType(arg6) << 4 | Get2_ExtArgType(arg7) << 2 | Get2_ExtArgType(arg8);
-		opcodes.push_back(t1);
-		if (xcall == true)
+		//Get first and second operand type
+		opcodes.push_back(t1);	//push first operand
+		if (xcall == true)			//xcall have second operand type
 			opcodes.push_back(t2);
-		for (i = 0; i < optokens.size(); i++) {
+		for (i = 0; i < optokens.size(); i++) {			
 			arg1 = optokens.at(i);
-			temp = GetOperandValues(arg1, &valsize);
+			temp = GetOperandValues(arg1, &valsize);	//get operand values
 			if (valsize == 2)
 			{
 				opcodes.push_back(temp >> 8);
@@ -883,35 +1133,46 @@ int MakeByteFromOpcode(string args, string type, int opcode, string flags, int l
 			}
 		}
 	}
-	if (flags == "result.branch")
+	if (flags == "result.branch")						//if result.branch
 	{
-		if (GetOperandType(resultop) != 2) {
+		if (GetOperandType(resultop) != 2) {				//get operand type and value of result op
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		temp = GetOperandValues(resultop, &valsize);	
+		temp = GetOperandValues(resultop, &valsize);	//add result op
 		opcodes.push_back(temp & 0xff);
 		
-		jump_to(jump_name, &opcodes, bBranchType);
+		jump_to(jump_name, &opcodes, bBranchType);		//add jump opcodes to
 	}
-	if (flags == "result") {
-		if (GetOperandType(resultop) != 2) {
+	if (flags == "result") {							//if opcode type is result
+		if (GetOperandType(resultop) != 2) {			
 			cout << "Result argument error." << endl;
 			exit(1);
 		}
-		temp = GetOperandValues(resultop,&valsize);
+		temp = GetOperandValues(resultop,&valsize);		//result ops' val
 		opcodes.push_back(temp & 0xff);		
 		
 	}
-	if (flags == "branch") {
-		jump_to(jump_name, &opcodes, bBranchType);
+	if (flags == "branch") {							//if flag == "branch"
+		jump_to(jump_name, &opcodes, bBranchType);		//make jump_name
 	}
-	for (pos = 0; pos < opcodes.size(); pos++) {
+	for (pos = 0; pos < opcodes.size(); pos++) {		//push all generated opcodes to assembled array
 		char ch = opcodes.at(pos);
 		assembled.push_back(ch);
 	}
-	return opcodes.size();
+	return opcodes.size();								//return opcode size
 }
+/*
+parameter :			string name (ARGUMENT STRING)
+					vector<char*> opcodes type (0OP or 1op or 2op or ext)
+					bool modes (binary value of opcode)
+return value : void
+generated jump byte array and push it to opcodes
+
+if jump name is rfalse or rtrue then push 0x8000, or 0x8001
+check local and global labels to jump.
+
+*/
 void jump_to(string name, vector<char> *opcodes, bool mode = 0){
 	int i;
 	if (name == "rfalse") {
@@ -926,63 +1187,69 @@ void jump_to(string name, vector<char> *opcodes, bool mode = 0){
 		opcodes->push_back(1);
 		return;
 	}
-	int pos = ProgBase + assembled.size() + opcodes->size();
+	int pos = ProgBase + assembled.size() + opcodes->size();	//current position
 	unsigned short temp;
 	bool exist = 0;
-	for (i = 0; i < gLocalLabels.size(); i++){
+	for (i = 0; i < gLocalLabels.size(); i++){			//check local labels';
 		LOCALLABEL st = gLocalLabels.at(i);
 		if (strlower(name) == strlower(st.name) && strlower(gfuncname) == strlower(st.functionname)) {
-			if (mode == 0) {
-				temp = 0x8000 | (st.offset - pos) & 0x3FFF;
+			if (mode == 0) {							//if branchmode == false
+				temp = 0x8000 | (st.offset - pos) & 0x3FFF;	//temp calc
 			}
-			else {
+			else {										//branch mode true
 				temp = (st.offset - pos) & 0x3FFF;
 			}
-			opcodes->push_back(temp >> 8);
+			opcodes->push_back(temp >> 8);				//push jump offset
 			opcodes->push_back(temp & 0xFF);
 			exist = 1;
 			break;
 		}
 	}
-	if (exist == 0) {
-		for (i = 0; i < gGlobalLabels.size(); i++){
+	if (exist == 0) {									//can not found in local labels then
+		for (i = 0; i < gGlobalLabels.size(); i++){		//check global labels.
 			GLOBALS st = gGlobalLabels.at(i);
-			if (strlower(name) == strlower(st.name)) {
+			if (strlower(name) == strlower(st.name)) {		//
 				if (mode == 0) {
 					temp = 0x8000 | (st.offset - pos) & 0x3FFF;
 				}
 				else {
 					temp = (st.offset - pos) & 0x3FFF;
-				}
-				opcodes->push_back(temp >> 8);
+				}	
+				opcodes->push_back(temp >> 8);				//push jump offset
 				opcodes->push_back(temp & 0xFF);
 				exist = 1;
 				break;
 			}
 		}
 	}
-	if (exist == 0) {
-		if (firstAssemble == 1) {
-			opcodes->push_back(0);
+	if (exist == 0) {					//if jump offset not ound
+		if (firstAssemble == 1) {		//if first assemble it will be ok
+			opcodes->push_back(0);		//push 0, 0
 			opcodes->push_back(0);
 		}
 		else {
 			cout << "Invalid jmp label:" << name << endl;
-			exit(1);
+			exit(1);					//else invalid jump label
 		}
 	}
 }
+/*
+parameter :			
+return value : void
 
+generated opcode vector from codeTable
+branch ! means branchtype = true
+*/
 void initOpFunctions() {
 	for (int i = 0; i < OPCODE_COUNT; i++) {
 		if (codeTable_YZIP[i].resulttype == "branch") {
 			STINSTRUCTION stIns;
-			stIns.instname = codeTable_YZIP[i].instname + "!";
-			stIns.insttype = codeTable_YZIP[i].insttype;
-			stIns.resulttype = codeTable_YZIP[i].resulttype;
-			stIns.opcode = codeTable_YZIP[i].opcode;
-			stIns.func = MakeByteFromOpcode;
-			gOpcodes.push_back(stIns);
+			stIns.instname = codeTable_YZIP[i].instname + "!";		//opecode name
+			stIns.insttype = codeTable_YZIP[i].insttype;			//opcode type
+			stIns.resulttype = codeTable_YZIP[i].resulttype;		//result type
+			stIns.opcode = codeTable_YZIP[i].opcode;				//opcode
+			stIns.func = MakeByteFromOpcode;					//process function
+			gOpcodes.push_back(stIns);				//push array
 		}
 		STINSTRUCTION stIns;
 		stIns.instname = codeTable_YZIP[i].instname;
@@ -993,35 +1260,49 @@ void initOpFunctions() {
 		gOpcodes.push_back(stIns);
 	}
 }
+/*
+parameter :
+return value : void
+
+make assemble.
+
+*/
 void Assembly() {
 	int i, pos;
 	string token;
-	int nsize = gInstructions.size();
+	int nsize = gInstructions.size();			//instruction array size
 	for (i = 0; i < nsize; i++) {
-		string line = gInstructions.at(i);
+		string line = gInstructions.at(i);		//instrunction one line
 
-		pos = line.find(DELIMITER);
-		if (pos == -1) {
-			token = line;
+		pos = line.find(DELIMITER);				//find delimiter
+		if (pos == -1) {					
+			token = line;						//if not found then all is opcode
 			line = "";
 		}
 		else {
-			token = line.substr(0, pos);
+			token = line.substr(0, pos);		//divide into opcode and argument
 			line.erase(0, pos + 1);
 			trim(line);
 		}
-		token = strlower(token);
-		if (token == ".end")
-			break;
+		token = strlower(token);				//if meet .end
+		if (token == ".end")	
+			break;								//finish
 		trim(token);
-		pos = lineProcess(token, line, i);
-		i = (pos != 0) ? pos : i;
+		pos = lineProcess(token, line, i);		//process one line
+		i = (pos != 0) ? pos : i;				//
 	}
-	while (assembled.size() % ALIGNMENT)
+	while (assembled.size() % ALIGNMENT)		//make code alignment
 		assembled.push_back(0);
 	while (databytes.size() % ALIGNMENT)
 		databytes.push_back(0);
 }
+/*
+parameter :
+return value : boolean
+
+This function check current position is code segment or not.
+if we met endlod before then this is code section.
+*/
 bool IsCodeSegment() {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
@@ -1031,10 +1312,17 @@ bool IsCodeSegment() {
 	}
 	return 0;
 }
+/*
+parameter :
+return value : void
+
+Erase endlod
+This is for second pass
+*/
 void RemoveSegmentFlag() {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
-		GLOBALS g = gGlobalLabels.at(i);			//if endlod already parsed then after that is code segment's label.
+		GLOBALS g = gGlobalLabels.at(i);			
 		if (g.name == "endlod")
 		{
 			gGlobalLabels.erase(gGlobalLabels.begin() + i);
@@ -1042,10 +1330,17 @@ void RemoveSegmentFlag() {
 		}
 	}
 }
+/*
+parameter : string valname
+return value : int
+
+Get Current label's offset.
+if label is object name then return object number;
+*/
 int getGlobalPointer(string valname) {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
-		GLOBALS g = gGlobalLabels.at(i);			//if endlod already parsed then after that is code segment's label.
+		GLOBALS g = gGlobalLabels.at(i);			//check labels
 		if (strlower(g.name) == strlower(valname)) {
 			if (g.datatype == "imm")
 				return g.value.at(0);
@@ -1054,40 +1349,76 @@ int getGlobalPointer(string valname) {
 		}
 	}
 	for (i = 0; i < gObjects.size(); i++) {
-		ZOBJECT g = gObjects.at(i);			//if endlod already parsed then after that is code segment's label.
+		ZOBJECT g = gObjects.at(i);			//check objects
 		if (strlower(g.objname) == strlower(valname))
 			return g.objnum;
 	}
 	return 0;
 }
 
+/*
+parameter : string arg			(string to divide)
+			string delimiter	
+			string *Res			result string array
+return value : int (count)
+
+Get Current label's offset.
+if label is object name then return object number;
+*/
 int Split(string arg, string delimiter, string *res) {
-	int pos, decnt = delimiter.length();
+	int pos, decnt = delimiter.length();		//delimiter; 
 	string token;
 	int i = 0;
 	while ((pos = arg.find(delimiter)) != string::npos) {
-		token = arg.substr(0, pos);
-		res[i] = token;
+		token = arg.substr(0, pos);			//get one argument
+		res[i] = token;						//push it to array
 		arg.erase(0, pos + decnt);
 		i++;
 	}
 	if (arg != "") {
 		res[i] = arg;
 	}
-	return i;
+	return i;							//return count
 }
+/*
+parameter : string token (opcode)
+			string line	(argument)
+			int linenum (line number)
+return value : int (generated opcode)
+
+This function is main process function.
+This function received opcode and argument string and it's linenumber and generate byte result.
+
+All lines divided into 11 part
+1 : Global data processing ::
+2 : local labels processing:
+3 : Global data processing include =
+4 : equal
+5 : seq
+6 : fstr and gstr
+7 : funct
+8 : printi and printr
+9 : jump
+10 : usl(undefined)
+11 : other opcodes
+*/
+
 int lineProcess(string token, string line, int linenum) {
 P1:
 	int pos = token.length() - 1, nRet = 0, nl;
 	int i, j;
 	unsigned short val;
-	bool isCode = IsCodeSegment();
-	if (token == ".new")
-		zversion = stoi(line);
-	else if (token.find("::") != string::npos) {
-		if (token.substr(pos - 1) != "::") {
+	bool isCode = IsCodeSegment();		//check current position is code segment
+	if (token == ".new")				//.new means
+		zversion = is_number(line) ? stoi(line) : 6;			//new zversion
+	else if (token == "%serial::")
+		serialnum = line;
+	else if (token == "%zorkid::")
+		releasenum = is_number(line) ? stoi(line) : 1;
+	else if (token.find("::") != string::npos) {	//find ::
+		if (token.substr(pos - 1) != "::") {			//if token not start with ::
 			string retstr[10] = { 0 };
-			if (Split(token, "::", retstr) > 2) {
+			if (Split(token, "::", retstr) > 2) {		//then it is error
 				cout << "token error." << endl;
 				exit(1);
 			}
@@ -1096,8 +1427,8 @@ P1:
  		}
 		if (line == "") {
 			GLOBALS g;
-			g.datatype = "statement";
-			g.name = str_replace(token, "::", "");
+			g.datatype = "statement";		// if argument area is empty then it is simliar as 
+			g.name = str_replace(token, "::", "");	//only statement
 			g.offset = isCode ? ProgBase + assembled.size() : DataBase + databytes.size();
 			g.type = isCode ? TYPE_CODE : TYPE_DATA;
 			token = str_replace(token, "::", "");
@@ -2185,14 +2516,20 @@ P1:
 	}
 	return nRet;
 }
+/*
+parameter : ifstream *fp (opcode)
+return value : void
+
+This function read src file line by line and store line to vector list.
+*/
 void ReadLinebyLine(ifstream *fp) {
 	string line;
 	int pos;
 	string token, token1;
 	while (!fp->eof())  // EOF is false here
 	{
-		getline(*fp, line);
-		trim(line);
+		getline(*fp, line);			//read line
+		trim(line);					//remove space
 		if (line.empty())
 			continue;			//This is empty line.
 		if (line.at(0) == COMMENTCHAR)
@@ -2200,21 +2537,21 @@ void ReadLinebyLine(ifstream *fp) {
 		line = str_replace(line, '\t', ' ');
 
 		pos = line.find(DELIMITER);			//Find separator fist
-		token = line.substr(0, pos);
+		token = line.substr(0, pos);		
 		transform(token.begin(), token.end(), token.begin(), ::tolower);
 		if (token == ".insert")	//if .insert comment 
 		{
-			line.erase(0, pos + 1);
-			ifstream infile(line);
+			line.erase(0, pos + 1);			
+			ifstream infile(line);		//read insert file
 			if (infile.is_open() == false) {
 				cout << "File not found: " << line << endl;
 				exit(0);
 			}
-			ReadLinebyLine(&infile);
+			ReadLinebyLine(&infile);	
 		}
 		else
 		{
-			pos = line.find(COMMENTCHAR);
+			pos = line.find(COMMENTCHAR);		//remove text after comment char
 			if (pos != string::npos)
 				line.erase(pos, line.length() - pos);
 			gInstructions.push_back(line);
@@ -2222,6 +2559,12 @@ void ReadLinebyLine(ifstream *fp) {
 	}
 
 }
+/*
+parameter : 
+return value : int
+
+This function find object global position.
+*/
 int checkObjectLabel() {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
@@ -2232,6 +2575,12 @@ int checkObjectLabel() {
 	}
 	return 0;
 }
+/*
+parameter :
+return value : int
+
+This function impure tag position(impure means static base)
+*/
 int checkStaticBaseLabel() {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
@@ -2242,6 +2591,12 @@ int checkStaticBaseLabel() {
 	}
 	return 0;
 }
+/*
+parameter :
+return value : int
+
+This function find global variable position.
+*/
 int checkGlobalLabel() {
 	int i;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
@@ -2252,6 +2607,12 @@ int checkGlobalLabel() {
 	}
 	return 0;
 }
+/*
+parameter :
+return value : int
+
+This function find start label position, 
+*/
 int checkStartLabel() {
 	int j;
 	for (int i = 0; i < gGlobalLabels.size(); i++){
@@ -2270,12 +2631,25 @@ int checkStartLabel() {
 	}
 	return 0;
 }
+/*
+parameter : unsigned short val
+return value : unsigned short 
+
+This function convert short to big endian.
+0x1234 => buff[0] = 0x12, buff[1]=0x34
+*/
 unsigned short ToBigEndian(unsigned short val) {
 	unsigned short byte1 = val >> 8;
 	unsigned short byte2 = val & 0xFF;
 	unsigned short v = byte2 << 8 | byte1;
 	return v;
 }
+/*
+parameter : string outfile (output file name)
+return value : void
+
+Write assembled data and code to file.
+*/
 void WriteToFile(string outfile) {
 	firstAssemble = 0;
 	object_num = 1;
@@ -2289,12 +2663,12 @@ void WriteToFile(string outfile) {
 		cout << "No start label" << endl;
 		exit(1);
 	}
-	unsigned short globaladdr = checkGlobalLabel();
-	unsigned short objectaddr = checkObjectLabel();
-	unsigned short staticbase = checkStaticBaseLabel();
-	startPosition = startPosition / ALIGNMENT;
+	unsigned short globaladdr = checkGlobalLabel();			//Find global varaible postion
+	unsigned short objectaddr = checkObjectLabel();			//find object table position
+	unsigned short staticbase = checkStaticBaseLabel();		//find static base position
+	startPosition = startPosition / ALIGNMENT;				//start position /= 4;
 	int ns = sizeof(ZHEADER);
-	int divider = (zversion > 5) ? 8 : 4;
+	int divider = (zversion > 5) ? 8 : 4;					//Divider
 	
 	while (assembled.size() % divider)
 		assembled.push_back(0);
@@ -2306,34 +2680,39 @@ void WriteToFile(string outfile) {
 	zh.entry = (zversion > 5) ? ToBigEndian(ProgBase / 4) : ToBigEndian(ProgBase + 1);
 	zh.staticMemBase = ToBigEndian(staticbase);
 	zh.filelen = ToBigEndian((ProgBase + assembled.size()) / divider);
-	zh.routineoffset = 0;
-	zh.staticstringoffset = 0;
-	zh.loc_global = ToBigEndian(globaladdr);
-	zh.loc_objtable = ToBigEndian(objectaddr);
+	zh.routineoffset = 0;							//routine offset may be consider
+	zh.staticstringoffset = 0;						//string offset maybe consider 
+	zh.loc_global = ToBigEndian(globaladdr);		//Global table position
+	zh.loc_objtable = ToBigEndian(objectaddr);		//Object table
 	zh.releasenumber = rand() % 0x100;
 	makeSerial(zh.serial);
-	fwrite(&zh, sizeof(ZHEADER), 1, fp);
+	fwrite(&zh, sizeof(ZHEADER), 1, fp);				//Write Z header 64 byte to file.
 
 	int i;
-	int heapval = 0x3000 - databytes.size();
+	int heapval = ProgBase - DataBase - databytes.size();
 	char zchar = 0;
-	for (i = sizeof(ZHEADER); i < DataBase; i++){
-		fwrite(&zchar, 1, 1, fp);
+	for (i = sizeof(ZHEADER); i < DataBase; i++){		//Write Zero bytes to data's base
+		fwrite(&zchar, 1, 1, fp);						//database is 0x40 now, so no written operate
 	}
-	for (i = 0; i < databytes.size(); i++){
-		char ch = databytes.at(i);
+	for (i = 0; i < databytes.size(); i++){				//Write databytes to files
+		char ch = databytes.at(i);						//Write file one by one
 		fwrite(&ch, 1, 1, fp);
 	}
-	for (i = 0; i < heapval; i++){
+	for (i = 0; i < heapval; i++){						//Write Zero to high membase
 		fwrite(&zchar, 1, 1, fp);
 	}
-
-	for (i = 0; i < assembled.size(); i++){
+	for (i = 0; i < assembled.size(); i++){				//Write assembled files/
 		zchar = assembled.at(i);
 		fwrite(&zchar, 1, 1, fp);
 	}
 	fclose(fp);
 }
+/*
+parameter : char *p
+return value : void
+
+This function read serial from src file.
+*/
 void makeSerial(char*p) {
 	int i,j;
 	for (i = 0; i < gGlobalLabels.size(); i++) {
@@ -2345,6 +2724,12 @@ void makeSerial(char*p) {
 		}
 	}
 }
+/*
+parameter : string org
+return value : string
+
+This function make file name from zversion,
+*/
 string getFileName(string org) {
 	string s = org;
 	size_t pos = 0;
@@ -2369,6 +2754,12 @@ string getFileName(string org) {
 	s.erase(pos);
 	return s + ext;
 }
+/*
+parameter :
+return value : int
+
+main entry point
+*/
 int main(int argc, char** argv) {
 	printf("My Zasm version 0.1\n");
 
