@@ -8,7 +8,7 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
-
+#include <memory.h>
 #pragma pack(1)
 
 using namespace std;
@@ -138,7 +138,8 @@ unsigned short releasenum = 1;		//program's release number
 int global_num = 16;				//Global variable number
 int object_num = 1;					//Global object number;
 string gfuncname;					//Current function name
-
+int foff = 0;						//start of function area
+int soff = 0;						//start of string area
 STINSTRUCTION codeTable_YZIP[255] = {
 	{ "catch", "0op", 185, "result" },
 	{ "crlf", "0op", 187, "" },
@@ -283,6 +284,8 @@ string strupper(string arg);
 string str_replace(string arg1, char arg2, char arg3);
 string str_replace(string arg1, string arg2, string arg3);
 int Split(string arg, string delimiter, string *res);
+bool checkStringParam(string &arg);
+bool removelinecommentchar(string &arg);
 ///////////////////////////////////////////////////////////////
 // Main function declr
 //////////////////////////////////////////////////////////////
@@ -826,6 +829,67 @@ void ZcharEncode(char chin, vector<char>*zcharstr) {
 	zcharstr->push_back(6);
 	zcharstr->push_back(chin >> 5);
 	zcharstr->push_back(chin & 0x1F);
+}
+/*
+parameter :			string arg
+return value :	boolean
+string arg is correct string or not.
+for example "abc" is correct string return true
+"ab"c is not correct string	return false
+"abc is not also correct string return false.
+*/
+bool checkStringParam(string &arg) {
+	string str = arg;
+	if (str.substr(0, 1) != "\"")		//Find first "
+		return false;
+	str = str.erase(0, 1);				//remove it
+	int nlen = str.length();
+	if (str.substr(nlen - 1, 1) != "\"")	//Find last "
+		return false;
+	str = str.erase(nlen - 1, 1);			//remove it
+	if (str.find("\"") != string::npos)
+		return false;
+	str = str_replace(str, """", "\"");
+	arg = str;
+	return true;
+}
+/*
+parameter :			string arg
+return value :	boolean
+Line is correct or not in string manipulation
+
+This function remove comment string from one line.
+for example add X, Y >Z ;This instruction adds x and y, save result to Z
+=>add X, Y >Z
+But PRINTI "This is test; And This "
+Comment char can not remove
+
+*/
+bool removelinecommentchar(string &arg) {
+	string str = arg;
+	int pos1 = str.find("\"");
+	int pos2 = str.find(";");
+	if (str.empty())
+		arg = "";
+	if (pos1 == string::npos)
+	{
+		if (pos2 != string::npos)
+			arg.erase(pos2, arg.length() - pos2);
+		return true;
+	}
+	if (pos2 < pos1) {
+		if (pos2 != string::npos)
+			arg.erase(pos2, arg.length() - pos2);
+		return true;
+	}
+	int pos3 = str.find_last_of("\"");
+	if (pos2 == pos3)
+		return false;
+	if (pos2 > pos3) {
+		if (pos2 != string::npos)
+			arg.erase(pos2, arg.length() - pos2);
+	}
+	return true;
 }
 /*
 parameter :			char *pin  (string to encode "This is... "
@@ -1422,7 +1486,8 @@ All lines divided into 11 part
 */
 
 int lineProcess(string token, string line, int linenum) {
-P1:
+P1:	if (token == "")
+		return linenum;
 	int pos = token.length() - 1, nRet = 0, nl;
 	int i, j;
 	unsigned short val;
@@ -1434,6 +1499,10 @@ P1:
 		serialnum = line;
 	else if (token == "%zorkid::")
 		releasenum = is_number(line) ? stoi(line) : 1;
+	else if (token == "%foff::")
+		foff = is_number(line) ? stoi(line) : 0;
+	else if (token == "%soff::")
+		soff = is_number(line) ? stoi(line) : 0;
 	else if (token.find("::") != string::npos) {	//find ::
 		if (token.substr(pos - 1) != "::") {			//if token not start with ::
 			string retstr[10] = { 0 };
@@ -2558,16 +2627,13 @@ This function read src file line by line and store line to vector list.
 */
 void ReadLinebyLine(ifstream *fp) {
 	string line;
+	bool ok;
 	int pos;
 	string token, token1;
 	while (!fp->eof())  // EOF is false here
 	{
 		getline(*fp, line);			//read line
 		trim(line);					//remove space
-		if (line.empty())
-			continue;			//This is empty line.
-		if (line.at(0) == COMMENTCHAR)
-			continue;			//This is comment line
 		line = str_replace(line, '\t', ' ');
 
 		pos = line.find(DELIMITER);			//Find separator fist
@@ -2576,6 +2642,12 @@ void ReadLinebyLine(ifstream *fp) {
 		if (token == ".insert")	//if .insert comment 
 		{
 			line.erase(0, pos + 1);
+			ok = checkStringParam(line);
+			if (ok == false) {
+				cout << "Insert file name not correct: " << line << endl;
+				exit(0);
+			}
+			line = line + ".zap";
 			ifstream infile(line);		//read insert file
 			if (infile.is_open() == false) {
 				cout << "File not found: " << line << endl;
@@ -2585,9 +2657,11 @@ void ReadLinebyLine(ifstream *fp) {
 		}
 		else
 		{
-			pos = line.find(COMMENTCHAR);		//remove text after comment char
-			if (pos != string::npos)
-				line.erase(pos, line.length() - pos);
+			ok = removelinecommentchar(line);
+			if (ok == false) {
+				cout << "string error found : " << line << endl;
+				exit(0);
+			}
 			gInstructions.push_back(line);
 		}
 	}
